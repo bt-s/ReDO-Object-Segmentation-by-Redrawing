@@ -102,3 +102,14 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+/Datasets/
+.idea/vcs.xml
+.idea/modules.xml
+.idea/misc.xml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/dictionaries/MatsSteinweg.xml
+.idea/dd2412-project.iml
+.DS_Store
+Models/checkpoint
+Models/epoch_1.data-00000-of-00001
+Models/epoch_1.index

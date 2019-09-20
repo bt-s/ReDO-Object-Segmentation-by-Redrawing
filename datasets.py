@@ -113,6 +113,9 @@ class Dataset:
         # set dataset parameters
         split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)  # set batch size
 
+        # set number of repetitions to 1
+        split_ds = split_ds.repeat(1)
+
         # enable shuffling
         if shuffle:
             split_ds = split_ds.shuffle(buffer_size=tf.cast(tf.math.ceil(
@@ -181,6 +184,9 @@ class BirdDataset(Dataset):
 
         # set dataset parameters
         split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)  # set batch size
+
+        # set number of repetitions to 1
+        split_ds = split_ds.repeat(1)
 
         # enable shuffling
         if shuffle:
@@ -278,6 +284,9 @@ class FaceDataset(Dataset):
         # set dataset parameters
         split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)  # set batch size
 
+        # set number of repetitions to 1
+        split_ds = split_ds.repeat(1)
+
         # enable shuffling
         if shuffle:
             split_ds = split_ds.shuffle(buffer_size=tf.cast(tf.math.ceil(
@@ -339,7 +348,7 @@ if __name__ == '__main__':
     faces_validation = Faces.get_split(split='validation')
     faces_test = Faces.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in tqdm(faces_test.enumerate()):
+    for idx, (batch_images, batch_labels) in enumerate(birds_training):
         for image, label in zip(batch_images, batch_labels):
             fig, ax = plt.subplots(1, 2)
             ax[0].imshow(image.numpy())
