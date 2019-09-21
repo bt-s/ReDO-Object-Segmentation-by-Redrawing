@@ -110,12 +110,6 @@ venv.bak/
 .idea/dictionaries/MatsSteinweg.xml
 .idea/dd2412-project.iml
 .DS_Store
-Models/checkpoint
-Models/epoch_1.data-00000-of-00001
-Models/epoch_1.index
-Tensorboard_Logs/MaskGenerator_Birds/validation/events.out.tfevents.1569083035.Matss-MacBook-Pro.local.73164.298.v2
-Tensorboard_Logs/MaskGenerator_Birds/training/events.out.tfevents.1569083035.Matss-MacBook-Pro.local.73164.290.v2
-Weights/MaskGenerator_Birds_Epoch_1.data-00000-of-00001
-Weights/MaskGenerator_Birds_Epoch_1.index
-Weights/MaskGenerator_Birds_Epoch_2.data-00000-of-00001
-Weights/MaskGenerator_Birds_Epoch_2.index
+Models
+Tensorboard_Logs
+Weights
