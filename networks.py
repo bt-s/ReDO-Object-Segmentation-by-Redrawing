@@ -9,12 +9,13 @@ from tensorflow.keras.layers import Layer, Dense, Flatten, Conv2D, LayerNormaliz
 #######################
 
 class ConvolutionalBlock(Model):
-    def __init__(self, filters, kernel_size, padding, stride):
+    def __init__(self, filters, kernel_size, padding, stride, last_layer=False):
         super(ConvolutionalBlock, self).__init__()
         self.block = tf.keras.Sequential()
         self.block.add(Conv2D(filters=filters, kernel_size=kernel_size, padding=padding, strides=stride))
-        self.block.add(LayerNormalization(axis=(1, 2, 3)))
-        self.block.add(ReLU())
+        if not last_layer:
+            self.block.add(LayerNormalization(axis=(1, 2, 3)))
+            self.block.add(ReLU())
 
     @tf.function
     def call(self, x):
@@ -153,6 +154,8 @@ class MaskGenerator(Model):
     def __init__(self, n_classes):
         super(MaskGenerator, self).__init__()
 
+        self.save_name = 'MaskGenerator'
+
         self.n_classes = n_classes  # number of output classes including background
 
         # first computational block (3 convolutional layers)
@@ -176,22 +179,20 @@ class MaskGenerator(Model):
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
         self.conv_block_5 = ConvolutionalBlock(filters=17, kernel_size=(3, 3), padding='same', stride=1)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
-        self.conv_block_6 = ConvolutionalBlock(filters=self.n_classes, kernel_size=(7, 7), padding='valid', stride=1)
+        self.conv_block_6 = ConvolutionalBlock(filters=self.n_classes, kernel_size=(7, 7), padding='valid', stride=1,
+                                               last_layer=True)
         self.block_4 = Sequential((self.conv_block_4, self.upsample, self.conv_block_5, self.ref_padding_2,
                                    self.conv_block_6))
+
+    def set_save_name(self, save_name):
+        self.save_name = save_name
 
     @tf.function
     def __call__(self, x):
         x = self.block_1(x)
         x = self.block_2(x)
         x = self.block_3(x)
-        x = self.block_4(x)
-
-        # compute output depending on number of classes
-        if self.n_classes == 2:
-            output = tf.math.sigmoid(x)
-        else:
-            output = Softmax(axis=3)(x)
+        output = self.block_4(x)
 
         return output
 

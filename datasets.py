@@ -75,10 +75,10 @@ class Dataset:
         # standardize image
         image = tf.image.per_image_standardization(image)
 
-        # binarize label
+        # binarize and create one-hot label
         object_threshold = 0.9*tf.reduce_max(label)  # threshold for minimum intensity of object in non-binary label
-        label = tf.cast(tf.where(label >= object_threshold, 1, 0), tf.float32)
-
+        label = tf.cast(tf.where(label >= object_threshold, 1, 0), tf.uint8)[:, :, 0]
+        label = tf.one_hot(label, depth=2)
         return image, label
 
     def get_split(self, split, batch_size=25, shuffle=False):
@@ -134,6 +134,7 @@ class BirdDataset(Dataset):
     def __init__(self, root, image_dir, label_dir, path_file, split_file):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Bird'
+        self.n_classes = 2
 
     @staticmethod
     def read_file(filename, file_type):
@@ -205,6 +206,7 @@ class FlowerDataset(Dataset):
     def __init__(self, root, image_dir, label_dir, path_file, split_file):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Flower'
+        self.n_classes = 2
 
     @staticmethod
     def transform(image_path, label_path):
@@ -227,10 +229,11 @@ class FlowerDataset(Dataset):
         # standardize image
         image = tf.image.per_image_standardization(image)
 
-        # binarize label
+        # binarize and get one-hot label
         background_color = 29
         label = tf.cast(tf.where(tf.logical_or(label <= 0.9*background_color, label >= 1.1*background_color), 1, 0),
-                        tf.float32)
+                        tf.uint8)[:, :, 0]
+        label = tf.one_hot(label, depth=2)
 
         return image, label
 
@@ -244,6 +247,7 @@ class FaceDataset(Dataset):
     def __init__(self, root, image_dir, label_dir, path_file, split_file):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Face'
+        self.n_classes = 2
 
     def get_split(self, split, batch_size=25, shuffle=False):
         """
@@ -315,9 +319,10 @@ class FaceDataset(Dataset):
         # standardize image
         image = tf.image.per_image_standardization(image)
 
-        # binarize label
+        # binarize and get one-hot label
         object_threshold = 30  # threshold for minimum intensity of object in non-binary label
-        label = tf.cast(tf.where(label > object_threshold, 1, 0), tf.float32)
+        label = tf.cast(tf.where(label > object_threshold, 1, 0), tf.uint8)[:, :, 0]
+        label = tf.one_hot(label, depth=2)
 
         return image, label
 
