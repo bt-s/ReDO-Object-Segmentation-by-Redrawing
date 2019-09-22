@@ -2,6 +2,7 @@ import tensorflow as tf
 import os
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+import numpy as np
 
 ######################
 # Dataset Base Class #
@@ -81,10 +82,11 @@ class Dataset:
         label = tf.one_hot(label, depth=2)
         return image, label
 
-    def get_split(self, split, batch_size=25, shuffle=False):
+    def get_split(self, split, size=None, batch_size=25, shuffle=False):
         """
         Get a split of the CUB dataset with given batch_size.
         :param split: desired split of the CUB dataset. Options: 'training', 'validation', 'test'
+        :param size: number of samples in the dataset. Default: 'None' -> whole dataset
         :param batch_size: desired batch_size
         :return: tf.data.Dataset object containing the desired split of the CUB dataset
         """
@@ -101,6 +103,12 @@ class Dataset:
 
         # make sure a label exists for each image in split
         assert (split_image_paths.shape[0] == split_label_paths.shape[0])
+
+        # randomly sample images from dataset to get desired size
+        if size is not None:
+            subset_indices = tf.random.uniform([size, 1], 0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
+            split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
 
         # create tf.data.dataset objects for images and labels | zip datasets to create (image, label) dataset
         split_image_ds = tf.data.Dataset.from_tensor_slices(split_image_paths)
@@ -153,11 +161,12 @@ class BirdDataset(Dataset):
         file.close()
         return items
 
-    def get_split(self, split, batch_size=25, shuffle=False):
+    def get_split(self, split, size=None, batch_size=25, shuffle=False):
         """
         Get a split of the CUB dataset with given batch_size.
         :param split: desired split of the CUB dataset. Options: 'training', 'validation', 'test'
         :param batch_size: desired batch_size
+        :param size: number of samples in the dataset. Default: 'None' -> whole dataset
         :param shuffle: enable shuffling or not
         :return: tf.data.Dataset object containing the desired split of the CUB dataset
         """
@@ -174,6 +183,12 @@ class BirdDataset(Dataset):
 
         # make sure a label exists for each image in split
         assert (split_image_paths.shape[0] == split_label_paths.shape[0])
+
+        # randomly sample images from dataset to get desired size
+        if size is not None:
+            subset_indices = tf.random.uniform([size, 1], 0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
+            split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
 
         # create tf.data.dataset objects for images and labels | zip datasets to create (image, label) dataset
         split_image_ds = tf.data.Dataset.from_tensor_slices(split_image_paths)
@@ -249,10 +264,11 @@ class FaceDataset(Dataset):
         self.type = 'Face'
         self.n_classes = 2
 
-    def get_split(self, split, batch_size=25, shuffle=False):
+    def get_split(self, split, size=None, batch_size=25, shuffle=False):
         """
         Get a split of the CUB dataset with given batch_size.
         :param split: desired split of the CUB dataset. Options: 'training', 'validation', 'test'
+        :param size: number of samples in the dataset. Default: 'None' -> whole dataset
         :param batch_size: desired batch_size
         :return: tf.data.Dataset object containing the desired split of the CUB dataset
         """
@@ -276,6 +292,12 @@ class FaceDataset(Dataset):
 
         # make sure a label exists for each image in split
         assert (split_image_paths.shape[0] == split_label_paths.shape[0])
+
+        # randomly sample images from dataset to get desired size
+        if size is not None:
+            subset_indices = tf.random.uniform([size, 1], 0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
+            split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
 
         # create tf.data.dataset objects for images and labels | zip datasets to create (image, label) dataset
         split_image_ds = tf.data.Dataset.from_tensor_slices(split_image_paths)
@@ -320,7 +342,7 @@ class FaceDataset(Dataset):
         image = tf.image.per_image_standardization(image)
 
         # binarize and get one-hot label
-        object_threshold = 30  # threshold for minimum intensity of object in non-binary label
+        object_threshold = 40  # threshold for minimum intensity of object in non-binary label
         label = tf.cast(tf.where(label > object_threshold, 1, 0), tf.uint8)[:, :, 0]
         label = tf.one_hot(label, depth=2)
 
@@ -333,7 +355,7 @@ if __name__ == '__main__':
     Birds = BirdDataset(root='Datasets/Birds/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
                      split_file='train_val_test_split.txt')
     Birds.summary()
-    birds_training = Birds.get_split(split='training')
+    birds_training = Birds.get_split(split='training', size=400)
     birds_validation = Birds.get_split(split='validation')
     birds_test = Birds.get_split(split='test')
 
@@ -350,12 +372,12 @@ if __name__ == '__main__':
                              split_file='train_val_test_split.txt')
     Faces.summary()
     faces_training = Faces.get_split(split='training')
-    faces_validation = Faces.get_split(split='validation')
+    faces_validation = Faces.get_split(split='validation', size=400, shuffle=True)
     faces_test = Faces.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in enumerate(birds_training):
+    for idx, (batch_images, batch_labels) in enumerate(faces_validation):
         for image, label in zip(batch_images, batch_labels):
             fig, ax = plt.subplots(1, 2)
             ax[0].imshow(image.numpy())
-            ax[1].imshow(label.numpy()[:, :, 0], cmap='gray')
+            ax[1].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()

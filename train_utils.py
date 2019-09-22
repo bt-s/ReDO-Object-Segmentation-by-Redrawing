@@ -128,7 +128,7 @@ class EarlyStopping:
             print('###########################################################')
 
         # save model weights at the end of epoch
-        model.save_weights('Weights/' + model.save_name + '_Epoch_' + str(self.best_epoch))
+        model.save_weights('Weights/' + model.save_name + '/Epoch_' + str(self.best_epoch) + '/')
 
         # set current loss as new minimum loss
         self.val_loss_min = val_loss

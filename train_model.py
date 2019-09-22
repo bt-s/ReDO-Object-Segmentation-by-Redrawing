@@ -4,8 +4,8 @@ from datasets import BirdDataset, FlowerDataset, FaceDataset
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import Mean, Accuracy, MeanIoU
-import datetime
 import train_utils
+from time import time
 from train_utils import SupervisedLoss, EarlyStopping
 
 if __name__ == '__main__':
@@ -13,15 +13,15 @@ if __name__ == '__main__':
     # create datasets
     dataset = BirdDataset(root='Datasets/Birds/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
                         split_file='train_val_test_split.txt')
-    training_dataset = dataset.get_split(split='training', batch_size=25)
-    validation_dataset = dataset.get_split(split='validation', batch_size=25)
+    training_dataset = dataset.get_split(split='training', size=200, batch_size=20, shuffle=True)
+    validation_dataset = dataset.get_split(split='test', batch_size=20)
 
     # create dataset dict for train function
     datasets = {'train': training_dataset, 'val': validation_dataset}
 
     # create network object
     model = MaskGenerator(n_classes=dataset.n_classes)
-    model.set_save_name('MaskGenerator_Birds')
+    model.set_save_name('Supervised_Birds_200')
 
     # define loss function
     loss = SupervisedLoss()
@@ -30,12 +30,12 @@ if __name__ == '__main__':
     optimizer = Adam(learning_rate=1e-5, beta_1=0, beta_2=0.9)
 
     # set training parameters
-    n_epochs = 10
-    early_stopping = EarlyStopping(patience=20, verbose=True)
+    n_epochs = 50
+    early_stopping = EarlyStopping(patience=5, verbose=True)
 
     # define metrics dictionary
-    metrics = {'train_loss': Mean(), 'train_accuracy': Mean(), 'train_IoU': Mean(),
-               'val_loss': Mean(), 'val_accuracy': Mean(), 'val_IoU': Mean()}
+    metrics = {'train_loss': Mean(), 'train_accuracy': Mean(), 'train_IoU': Mean(), 'train_phase_time': Mean(),
+               'val_loss': Mean(), 'val_accuracy': Mean(), 'val_IoU': Mean(), 'val_phase_time': Mean()}
     # batch metrics
     accuracy = Accuracy()
     iou = MeanIoU(model.n_classes)
@@ -50,6 +50,8 @@ if __name__ == '__main__':
     # compute one training step
     @tf.function
     def step(batch_images, batch_labels, phase):
+
+        step_start_time = time()
 
         if phase == 'train':
             # activate gradient tape
@@ -69,12 +71,26 @@ if __name__ == '__main__':
             # compute loss for current batch
             batch_loss = loss(batch_predictions, batch_labels)
 
+        # get elapsed time
+        step_end_time = time()
+        step_time = step_end_time - step_start_time
+
         # update respective metric with computed loss
         metrics[phase + '_loss'](batch_loss)
         batch_accuracy = accuracy(tf.argmax(batch_predictions, axis=3), tf.argmax(batch_labels, axis=3))
-        metrics[phase + '_accuracy'](batch_accuracy)
         batch_iou = iou(tf.argmax(batch_predictions, axis=3), tf.argmax(batch_labels, axis=3))
+        true_positives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 1,
+                                                 tf.argmax(batch_labels, axis=3) == 1), 1, 0), axis=(1, 2, 3))
+        false_positives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 1,
+                                                tf.argmax(batch_labels, axis=3) == 0), 1, 0), axis=(1, 2, 3))
+        false_negatives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 0,
+                                                 tf.argmax(batch_labels, axis=3) == 1), 1, 0), axis=(1, 2, 3))
+        batch_iou1 = tf.reduce_mean(true_positives / (true_positives + false_negatives + false_positives))
+        n_label_px = tf.reduce_sum(batch_labels, axis=(1, 2, 3))
+        accuracy1 = tf.reduce_mean(true_positives / n_label_px)
         metrics[phase + '_IoU'](batch_iou)
+        metrics[phase + '_accuracy'](batch_iou1)
+        metrics[phase + '_phase_time'](step_time)
 
     # iterate over specified number of epochs
     for epoch in range(n_epochs):
