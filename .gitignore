@@ -103,12 +103,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 /Datasets/
-.idea/vcs.xml
-.idea/modules.xml
-.idea/misc.xml
-.idea/inspectionProfiles/profiles_settings.xml
-.idea/dictionaries/MatsSteinweg.xml
-.idea/dd2412-project.iml
+.idea
 .DS_Store
 Models
 Tensorboard_Logs
