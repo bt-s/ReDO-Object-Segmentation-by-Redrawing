@@ -70,8 +70,8 @@ class Dataset:
         label = tf.image.decode_jpeg(tf.io.read_file(label_path), channels=1)
 
         # resize images to match required input dimensions
-        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
-        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
+        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False)
+        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False)
 
         # standardize image
         image = tf.image.per_image_standardization(image)
@@ -139,7 +139,8 @@ class Dataset:
 
 class BirdDataset(Dataset):
 
-    def __init__(self, root, image_dir, label_dir, path_file, split_file):
+    def __init__(self, root='Datasets/Birds/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
+                        split_file='train_val_test_split.txt'):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Bird'
         self.n_classes = 2
@@ -218,7 +219,8 @@ class BirdDataset(Dataset):
 
 class FlowerDataset(Dataset):
 
-    def __init__(self, root, image_dir, label_dir, path_file, split_file):
+    def __init__(self, root='Datasets/Flowers/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
+                        split_file='train_val_test_split.txt'):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Flower'
         self.n_classes = 2
@@ -238,8 +240,8 @@ class FlowerDataset(Dataset):
         label = tf.image.decode_png(tf.io.read_file(label_path), channels=1)
 
         # resize images to match required input dimensions
-        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
-        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
+        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False)
+        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False)
 
         # standardize image
         image = tf.image.per_image_standardization(image)
@@ -259,7 +261,8 @@ class FlowerDataset(Dataset):
 
 class FaceDataset(Dataset):
 
-    def __init__(self, root, image_dir, label_dir, path_file, split_file):
+    def __init__(self, root='Datasets/Faces/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
+                        split_file='train_val_test_split.txt'):
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Face'
         self.n_classes = 2
@@ -335,8 +338,8 @@ class FaceDataset(Dataset):
         label = tf.image.decode_jpeg(tf.io.read_file(label_path), channels=1)
 
         # resize images to match required input dimensions
-        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
-        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False, antialias=True)
+        image = tf.image.resize(image, size=(128, 128), preserve_aspect_ratio=False)
+        label = tf.image.resize(label, size=(128, 128), preserve_aspect_ratio=False)
 
         # standardize image
         image = tf.image.per_image_standardization(image)
@@ -375,7 +378,7 @@ if __name__ == '__main__':
     faces_validation = Faces.get_split(split='validation', size=400, shuffle=True)
     faces_test = Faces.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in enumerate(faces_validation):
+    for idx, (batch_images, batch_labels) in enumerate(birds_training):
         for image, label in zip(batch_images, batch_labels):
             fig, ax = plt.subplots(1, 2)
             ax[0].imshow(image.numpy())

@@ -1,5 +1,5 @@
 import tensorflow as tf
-from networks import MaskGenerator
+from segmentation_network import MaskGenerator
 from datasets import BirdDataset, FlowerDataset, FaceDataset
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
@@ -11,17 +11,19 @@ from train_utils import SupervisedLoss, EarlyStopping
 if __name__ == '__main__':
 
     # create datasets
-    dataset = BirdDataset(root='Datasets/Birds/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
-                        split_file='train_val_test_split.txt')
-    training_dataset = dataset.get_split(split='training', size=200, batch_size=20, shuffle=True)
-    validation_dataset = dataset.get_split(split='test', batch_size=20)
+    dataset = FaceDataset()
+    training_dataset = dataset.get_split(split='validation', size=400, batch_size=25, shuffle=True)
+    validation_dataset = dataset.get_split(split='test', batch_size=25)
 
     # create dataset dict for train function
     datasets = {'train': training_dataset, 'val': validation_dataset}
 
+    # initializer
+    initializer = tf.initializers.orthogonal(gain=0.8)
+
     # create network object
-    model = MaskGenerator(n_classes=dataset.n_classes)
-    model.set_save_name('Supervised_Birds_200')
+    model = MaskGenerator(n_classes=dataset.n_classes, initializer=initializer)
+    model.set_save_name('Supervised_Faces_400')
 
     # define loss function
     loss = SupervisedLoss()
@@ -30,22 +32,21 @@ if __name__ == '__main__':
     optimizer = Adam(learning_rate=1e-5, beta_1=0, beta_2=0.9)
 
     # set training parameters
-    n_epochs = 50
-    early_stopping = EarlyStopping(patience=5, verbose=True)
+    n_epochs = 100
+    early_stopping = EarlyStopping(patience=7, verbose=True)
 
     # define metrics dictionary
-    metrics = {'train_loss': Mean(), 'train_accuracy': Mean(), 'train_IoU': Mean(), 'train_phase_time': Mean(),
-               'val_loss': Mean(), 'val_accuracy': Mean(), 'val_IoU': Mean(), 'val_phase_time': Mean()}
-    # batch metrics
-    accuracy = Accuracy()
-    iou = MeanIoU(model.n_classes)
+    metrics = {'train_loss': Mean(), 'train_accuracy': Mean(), 'train_IoU': Mean(), 'train_step_time': Mean(),
+               'val_loss': Mean(), 'val_accuracy': Mean(), 'val_IoU': Mean(), 'val_step_time': Mean()}
 
     # save tensorboard logs
     train_log_dir = 'Tensorboard_Logs/' + model.save_name + '/training'
     validation_log_dir = 'Tensorboard_Logs/' + model.save_name + '/validation'
+    graph_log_dir = 'Tensorboard_Logs/' + model.save_name + '/validation'
     train_writer = tf.summary.create_file_writer(train_log_dir)
     val_writer = tf.summary.create_file_writer(validation_log_dir)
-    tensorboard_writers = {'train_writer': train_writer, 'val_writer': val_writer}
+    graph_writer = tf.summary.create_file_writer(graph_log_dir)
+    tensorboard_writers = {'train_writer': train_writer, 'val_writer': val_writer, 'graph_writer': graph_writer}
 
     # compute one training step
     @tf.function
@@ -54,6 +55,7 @@ if __name__ == '__main__':
         step_start_time = time()
 
         if phase == 'train':
+            # tf.summary.trace_on(graph=True, profiler=True)
             # activate gradient tape
             with tf.GradientTape() as tape:
                 # get predictions for current batch
@@ -64,6 +66,8 @@ if __name__ == '__main__':
             gradients = tape.gradient(batch_loss, model.trainable_variables)
             # update weights
             optimizer.apply_gradients(zip(gradients, model.trainable_variables))
+            # with graph_writer.as_default():
+                # tf.summary.trace_export(name="step_function", step=epoch, profiler_outdir=graph_log_dir)
 
         else:
             # get predictions for current batch
@@ -75,22 +79,13 @@ if __name__ == '__main__':
         step_end_time = time()
         step_time = step_end_time - step_start_time
 
-        # update respective metric with computed loss
+        # update respective metric with computed loss and performance metrics
         metrics[phase + '_loss'](batch_loss)
-        batch_accuracy = accuracy(tf.argmax(batch_predictions, axis=3), tf.argmax(batch_labels, axis=3))
-        batch_iou = iou(tf.argmax(batch_predictions, axis=3), tf.argmax(batch_labels, axis=3))
-        true_positives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 1,
-                                                 tf.argmax(batch_labels, axis=3) == 1), 1, 0), axis=(1, 2, 3))
-        false_positives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 1,
-                                                tf.argmax(batch_labels, axis=3) == 0), 1, 0), axis=(1, 2, 3))
-        false_negatives = tf.reduce_sum(tf.where(tf.logical_and(tf.argmax(batch_predictions, axis=3) == 0,
-                                                 tf.argmax(batch_labels, axis=3) == 1), 1, 0), axis=(1, 2, 3))
-        batch_iou1 = tf.reduce_mean(true_positives / (true_positives + false_negatives + false_positives))
-        n_label_px = tf.reduce_sum(batch_labels, axis=(1, 2, 3))
-        accuracy1 = tf.reduce_mean(true_positives / n_label_px)
+        batch_accuracy = train_utils.compute_accuracy(batch_predictions, batch_labels)
+        batch_iou = train_utils.compute_IoU(batch_predictions, batch_labels)
         metrics[phase + '_IoU'](batch_iou)
-        metrics[phase + '_accuracy'](batch_iou1)
-        metrics[phase + '_phase_time'](step_time)
+        metrics[phase + '_accuracy'](batch_accuracy)
+        metrics[phase + '_step_time'](step_time)
 
     # iterate over specified number of epochs
     for epoch in range(n_epochs):
@@ -116,7 +111,7 @@ if __name__ == '__main__':
                 step(batch_images, batch_labels, phase=phase)
 
         # log epoch, print summary, evaluate early stopping
-        train_utils.log_epoch(metrics, tensorboard_writers, epoch)
+        train_utils.log_epoch(metrics, tensorboard_writers, epoch, scheme='supervised')
 
         # call early stopping module
         early_stopping(metrics['val_loss'].result(), epoch, model)
