@@ -1,10 +1,11 @@
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, Conv2D, UpSampling2D, MaxPool2D, Softmax
+from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, Conv2D, UpSampling2D, AveragePooling2D, Softmax
 import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.initializers import orthogonal
+from network_components import SpectralNormalization, SelfAttentionModule
 
 
 ###################################
@@ -42,7 +43,7 @@ class ConditionalBatchNormalization(Layer):
             Dense(units=n_output)))
 
     @tf.function
-    def __call__(self, x, noise, training):
+    def call(self, x, noise, training):
 
         x = self.bn(x, training=training)  # pass input through normal BN layer
 
@@ -68,7 +69,7 @@ class ConditionalBatchNormalization(Layer):
 # Initial Block #
 #################
 
-class InputBlock(Model):
+class InputBlock(Layer):
     """
     First computational block of the generator network. Includes a fully-connected layer whose output is then reshaped
     to be able to start applying convolutional layers. CBN and ReLU are also included.
@@ -77,18 +78,18 @@ class InputBlock(Model):
         super(InputBlock, self).__init__()
         self.base_channels = base_channels
         self.fc = Dense(units=base_channels * 16 * 4 * 4, kernel_initializer=orthogonal(gain=init_gain))
-        self.bn = ConditionalBatchNormalization(input_dim, 256, base_channels*output_channels)
+        self.cbn = ConditionalBatchNormalization(input_dim, 256, base_channels*output_channels)
         self.relu = ReLU()
 
     @tf.function
-    def __call__(self, z_k, training):
+    def call(self, z_k, training):
 
         # reshape output of fully-connected layer
         x = self.fc(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.base_channels*16))
 
         # apply CBN
-        x = self.bn(x, z_k, training)
+        x = self.cbn(x, z_k, training)
 
         output = self.relu(x)
         return output
@@ -98,31 +99,30 @@ class InputBlock(Model):
 # Residual Up-sampling Block #
 ##############################
 
-class ResidualUpsamplingBlock(Model):
+class ResidualUpsamplingBlock(Layer):
     def __init__(self, init_gain, noise_dim, base_channels, mask_scale, output_channels):
         super(ResidualUpsamplingBlock, self).__init__()
 
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')  # up-sampling layer
         # perform 1x1 convolutions on the identity to adjust the number of channels to the output of the conputational
         # pipeline
-        self.process_identity = Conv2D(filters=base_channels*output_channels, kernel_size=(1, 1), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain))
+        self.process_identity = SpectralNormalization(Conv2D(filters=base_channels*output_channels, kernel_size=(1, 1),
+                                                    padding='same', kernel_initializer=orthogonal(gain=init_gain)))
         # apply max-pooling to down-sample to segmentation mask
-        self.mask_pool = MaxPool2D(pool_size=mask_scale, padding='same')
+        self.mask_pool = AveragePooling2D(pool_size=mask_scale, padding='same')
 
         # computational pipeline
-        self.conv1 = Conv2D(filters=base_channels*output_channels, kernel_size=(3, 3), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain))
+        self.conv1 = SpectralNormalization(Conv2D(filters=base_channels*output_channels, kernel_size=(3, 3), padding='same',
+                                       kernel_initializer=orthogonal(gain=init_gain)))
 
         self.cbn1 = ConditionalBatchNormalization(noise_dim, 256, base_channels*output_channels)
         self.relu = ReLU()
-        self.conv2 = Conv2D(filters=base_channels*output_channels, kernel_size=(3, 3), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain))
+        self.conv2 = SpectralNormalization(Conv2D(filters=base_channels*output_channels, kernel_size=(3, 3), padding='same',
+                                       kernel_initializer=orthogonal(gain=init_gain)))
         self.cbn2 = ConditionalBatchNormalization(noise_dim, 256, base_channels*output_channels)
 
-
     @tf.function
-    def __call__(self, x, z_k, mask, training):
+    def call(self, x, z_k, mask, training):
 
         # resize mask to fit input shape
         mask = tf.cast(self.mask_pool(mask), tf.float32)
@@ -134,13 +134,13 @@ class ResidualUpsamplingBlock(Model):
         x = self.upsample(x)
 
         # save identity
-        identity = self.process_identity(x)
+        identity = self.process_identity(x, training)
 
         # pass input through pipeline
-        x = self.conv1(x)
+        x = self.conv1(x, training)
         x = self.cbn1(x, z_k, training)
         x = self.relu(x)
-        x = self.conv2(x)
+        x = self.conv2(x, training)
         x = self.cbn2(x, z_k, training)
 
         # skip-connection
@@ -152,65 +152,23 @@ class ResidualUpsamplingBlock(Model):
         return x
 
 
-####################
-# Attention Module #
-####################
-
-class AttentionModule(Layer):
-    def __init__(self, init_gain, base_channels, output_channels, key_size=None):
-        super(AttentionModule, self).__init__()
-
-        # set number of key channels
-        if key_size is None:
-            self.key_size = output_channels // 8
-        else:
-            self.key_size = key_size
-
-        # trainable parameter to control influence of learned attention maps
-        #self.gamma = tf.Variable(0.0)
-
-        # learned transformation
-        self.f = Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain))
-        self.g = Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain))
-        self.h = Conv2D(filters=base_channels*output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain))
-        self.out = Conv2D(filters=base_channels*output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain))
-
-    def __call__(self, x):
-
-        H, W, C = x.shape.as_list()[1:]  # width, height, channel
-
-        Q = tf.reshape(self.f(x), [-1, H*W, self.key_size])
-        K = tf.reshape(self.g(x), [-1, H*W, self.key_size])
-        V = tf.reshape(self.h(x), [-1, H*W, C])
-
-        dot_product = tf.matmul(Q, K, transpose_b=True)
-        weights = Softmax(axis=2)(dot_product)
-        o = tf.matmul(weights, V)
-        o = tf.reshape(o, [-1, H, W, C])
-        o = self.out(o)
-
-        #output = self.gamma * o + x
-
-        return o
-
-
 ###############
 # Final Block #
 ###############
 
-class OutputBlock(Model):
+class OutputBlock(Layer):
     def __init__(self, init_gain, noise_dim, base_channels, output_channels):
         super(OutputBlock, self).__init__()
         self.cbn = ConditionalBatchNormalization(noise_dim, 256, base_channels*output_channels)
         self.relu = ReLU()
-        self.conv = Conv2D(filters=3, kernel_size=(3, 3), padding='same', kernel_initializer=orthogonal(gain=init_gain))
+        self.conv = SpectralNormalization(Conv2D(filters=3, kernel_size=(3, 3), padding='same', kernel_initializer=orthogonal(gain=init_gain)))
 
     @tf.function
-    def __call__(self, x, noise, mask, training):
-        x = self.cbn(x, noise, training)
+    def call(self, x, z_k, masks, training):
+        x = self.cbn(x, z_k, training)
         x = self.relu(x)
-        x = tf.concat((x, tf.cast(mask, tf.float32)), axis=3)
-        x = self.conv(x)
+        x = tf.concat((x, tf.cast(masks, tf.float32)), axis=3)
+        x = self.conv(x, training)
         x = tf.keras.activations.tanh(x)
 
         return x
@@ -223,7 +181,10 @@ class OutputBlock(Model):
 class Generator(Model):
     def __init__(self, init_gain, input_dim=32, base_channels=32):
         super(Generator, self).__init__()
+
+        # set name for model saving
         self.model_name = 'Generator'
+
         self.k = None  # region for which the generator is trained
         self.base_channels = base_channels  # data-dependent constant used for number of channels throughout the network
 
@@ -244,7 +205,7 @@ class Generator(Model):
                                                       mask_scale=4, output_channels=2)
 
         # computational block 3 | self-attention module
-        self.block_3 = AttentionModule(init_gain=init_gain, base_channels=base_channels, output_channels=2)
+        self.block_3 = SelfAttentionModule(init_gain=init_gain, output_channels=2*base_channels)
 
         # computational block 4 | final residual up-sampling block
         self.block_4 = ResidualUpsamplingBlock(init_gain=init_gain, noise_dim=input_dim, base_channels=self.base_channels, mask_scale=2,
@@ -253,54 +214,48 @@ class Generator(Model):
         # computational block 5 | output block
         self.block_5 = OutputBlock(init_gain=init_gain, noise_dim=input_dim, base_channels=self.base_channels, output_channels=1)
 
-    def call(self, batch_images, mask_predictions, training):
+    def call(self, batch_images_real, batch_masks_logits, noise_dim, training):
         """
-        Forward pass of the generator network.
-        :param z_k: randomly-sampled noise vector z_k | shape: [32, ]
-        :param mask_predictions: extracted segmentation mask | shape: [height, width, n_classes-1]
+        Forward pass of the generator network. Create a batch of fake images.
+        :param batch_images_real: batch of images taken from the dataset
+        :param batch_masks_logits: extracted segmentation masks | shape: [batch_size, height, width, n_classes-1]
+        :param noise_dim: dimensionality of the noise vector
         :param training: current network phase to switch between modes for CBN layers
-        :return: generated image | shape: [height, width, 3]
+        :return: batch of fake images | shape: [batch_size, height, width, 3]
         """
 
-        # get noise vector
-        noise_dim = 32
-        z_k = tf.random.normal([mask_predictions.shape[0], noise_dim])
+        # number of different regions
+        n_regions = batch_masks_logits.shape[3]
+
+        # sample noise vector
+        z_k = tf.random.normal([batch_masks_logits.shape[0], noise_dim])
 
         # re-draw image
-        composed_image = tf.zeros(batch_images.shape)
-        for region in range(mask_predictions.shape[3]):
+        batch_images_fake = tf.zeros(batch_images_real.shape)
+        for k in range(n_regions):
 
             # get region mask
-            masks = tf.expand_dims(Softmax(axis=3)(mask_predictions)[:, :, :, region], axis=3)
+            batch_masks_k = tf.expand_dims(Softmax(axis=3)(batch_masks_logits)[:, :, :, k], axis=3)
 
             # re-draw sampled region
-            if region == self.k:
+            if k == self.k:
                 x = self.block_1(z_k, training=training)
-                x = self.up_res_block_1(x, z_k, masks, training=training)
-                x = self.up_res_block_2(x, z_k, masks, training=training)
-                x = self.up_res_block_3(x, z_k, masks, training=training)
-                x = self.up_res_block_4(x, z_k, masks, training=training)
-                #x = self.block_3(x)
-                x = self.block_4(x, z_k, masks, training)
-                generated_regions = self.block_5(x, z_k, masks, training)
-                composed_image += generated_regions * masks
+                x = self.up_res_block_1(x, z_k, batch_masks_k, training=training)
+                x = self.up_res_block_2(x, z_k, batch_masks_k, training=training)
+                x = self.up_res_block_3(x, z_k, batch_masks_k, training=training)
+                x = self.up_res_block_4(x, z_k, batch_masks_k, training=training)
+                x = self.block_3(x, training=training)
+                x = self.block_4(x, z_k, batch_masks_k, training=training)
+                batch_regions_fake = self.block_5(x, z_k, batch_masks_k, training=training)
+
+                # add redrawn regions to batch of fake images
+                batch_images_fake += batch_regions_fake * batch_masks_k
+
             # re-use input image for other regions
             else:
-                composed_image += batch_images * masks
+                batch_images_fake += batch_images_real * batch_masks_k
 
-        # # plot progress
-        # fig, ax = plt.subplots(2, 2)
-        # ax[0, 0].imshow(batch_images[0].numpy())
-        # ax[1, 0].imshow(composed_image[0].numpy())
-        # ax[0, 1].imshow(Softmax(axis=2)(mask_predictions[0].numpy())[:, :, 0], cmap='gray')
-        # ax[1, 1].imshow(Softmax(axis=2)(mask_predictions[0].numpy())[:, :, 1], cmap='gray')
-        # ax[0, 0].set_title('Input')
-        # ax[1, 0].set_title('Composed Image')
-        # ax[0, 1].set_title('Background Mask')
-        # ax[1, 1].set_title('Foreground Mask')
-        # plt.show()
-
-        return composed_image, z_k
+        return batch_images_fake, z_k
 
     def set_region(self, k):
         self.k = k
@@ -316,12 +271,10 @@ if __name__ == '__main__':
     generator.set_region(0)
     optimizer = Adam(learning_rate=1e-1, beta_1=0, beta_2=0.9)
     input = tf.random.normal([1, 128, 128, 3])
-    mask = tf.random.uniform([1, 128, 128, 1], 0, 1, tf.float32)
+    mask = tf.random.uniform([1, 128, 128, 2], 0, 1, tf.float32)
     with tf.GradientTape() as tape:
-        output, z_k = generator(input, mask, training=True)
-    print(output.shape)
+        output, z_k = generator(input, mask, noise_dim=32, training=True)
     gradients = tape.gradient(output, generator.trainable_variables)
-    print([x.name for x in generator.trainable_variables])
     # update weights
     optimizer.apply_gradients(zip(gradients, generator.trainable_variables))
     output = output[0].numpy()
