@@ -1,5 +1,5 @@
 import tensorflow as tf
-from segmentation_network import MaskGenerator
+from segmentation_network import SegmentationNetwork
 from datasets import BirdDataset, FlowerDataset, FaceDataset
 from tensorflow.keras.metrics import Mean, Accuracy, MeanIoU
 from train_utils import SupervisedLoss
@@ -19,9 +19,9 @@ if __name__ == '__main__':
     init_gain = 1.0
 
     # create model and load weights
-    model = MaskGenerator(n_classes=dataset.n_classes, init_gain=init_gain)
+    model = SegmentationNetwork(n_classes=dataset.n_classes, init_gain=init_gain, weight_decay=1e-4)
     model.set_name('Segmentation_Network')
-    epoch = 10
+    epoch = 1
     model.load_weights('Weights/' + session_name + '/' + str(model.model_name) + '/Epoch_' + str(epoch) + '/')
 
     # loss function
