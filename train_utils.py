@@ -23,13 +23,15 @@ class UnsupervisedLoss(Loss):
         return adversarial_loss, information_conservation_loss
 
     @staticmethod
-    def get_discriminator_loss(discriminator_output_fake, discriminator_output_real):
+    def get_discriminator_loss(discriminator_output_real, discriminator_output_fake):
 
         # compute both parts of discriminator loss | prediction of fake images should be 0, prediction of real
         # images should be 1
-        zeros = tf.fill(discriminator_output_fake.shape, 0.0)
-        discriminator_loss_fake = tf.reduce_mean(tf.math.maximum(zeros, 1+discriminator_output_fake))
-        discriminator_loss_real = tf.reduce_mean(tf.math.maximum(zeros, 1-discriminator_output_real))
+        zeros_f = tf.fill(discriminator_output_fake.shape, 0.0)
+        zeros_r = tf.fill(discriminator_output_real.shape, 0.0)
+
+        discriminator_loss_fake = tf.reduce_mean(tf.math.maximum(zeros_f, 1+discriminator_output_fake))
+        discriminator_loss_real = tf.reduce_mean(tf.math.maximum(zeros_r, 1-discriminator_output_real))
 
         return discriminator_loss_real, discriminator_loss_fake
 
@@ -79,20 +81,20 @@ def log_epoch(metrics, tensorboard_writers, epoch, scheme):
 
         # log epoch summary for tensorboard
         with tensorboard_writers['train_writer'].as_default():
-            tf.summary.scalar('Generator Loss', metrics['train_loss_gen'].result(), step=epoch)
-            tf.summary.scalar('Discriminator Loss', metrics['train_loss_dis'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss', metrics['g_loss_train'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss', metrics['d_loss_train'].result(), step=epoch)
 
         with tensorboard_writers['val_writer'].as_default():
-            tf.summary.scalar('Generator Loss', metrics['val_loss_gen'].result(), step=epoch)
-            tf.summary.scalar('Discriminator Loss', metrics['val_loss_dis'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss', metrics['g_loss_val'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss', metrics['d_loss_val'].result(), step=epoch)
 
         # print summary at the end of epoch
-        epoch_summary = 'Epoch {} | Training (Generator D|Delta: {:.6f}|{:.6f}, Discriminator F|R: {:.6f}|{:.6f}) | ' \
-                        'Validation (Generator D|Delta: {:.6f}|{:.6f}, Discriminator F|R: {:.6f}|{:.6f})'
-        print(epoch_summary.format(epoch + 1, metrics['train_loss_gen_dis'].result(), metrics['train_loss_gen_inf'].result(),
-                                   metrics['train_loss_dis_fake'].result(), metrics['train_loss_dis_real'].result(),
-                                   metrics['val_loss_gen_dis'].result(), metrics['val_loss_gen_inf'].result(),
-                                   metrics['val_loss_dis_fake'].result(), metrics['val_loss_dis_real'].result()
+        epoch_summary = 'Epoch {} | Training (Generator D|I: {:.6f}|{:.6f}, Discriminator F|R: {:.6f}|{:.6f}) | ' \
+                        'Validation (Generator D|I: {:.6f}|{:.6f}, Discriminator F|R: {:.6f}|{:.6f})'
+        print(epoch_summary.format(epoch + 1, metrics['g_d_loss_train'].result(), metrics['g_i_loss_train'].result(),
+                                   metrics['d_f_loss_train'].result(), metrics['d_r_loss_train'].result(),
+                                   metrics['g_d_loss_val'].result(), metrics['g_i_loss_val'].result(),
+                                   metrics['d_f_loss_val'].result(), metrics['d_r_loss_val'].result()
                                    ))
 
     else:
