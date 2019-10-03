@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Conv2D, LayerNormalization, ReLU, UpSampling2D, Softmax, AveragePooling2D
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ class ConvolutionalBlock(Model):
         self.conv_block = Sequential()
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size, padding=padding, strides=stride,
                             kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay)))
-        self.conv_block.add(LayerNormalization(axis=(1, 2)))
+        self.conv_block.add(LayerNormalization(axis=(1, 2), center=False, scale=False))
         self.conv_block.add(ReLU())
 
     @tf.function
@@ -56,34 +57,30 @@ class PPM(Model):
         # scale 1 (1x1 Output)
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
         self.avg_pool_1 = AveragePooling2D(pool_size_1)
-        self.conv_1 = Conv2D(filters=n_input_channels // n_scales, kernel_size=(1, 1), padding='same',
+        self.conv_1 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_1 = UpSampling2D(size=pool_size_1, interpolation='bilinear')
 
         # scale 2 (2x2 Output)
         pool_size_2 = (input_shape[0] // 2, input_shape[1] // 2)
         self.avg_pool_2 = AveragePooling2D(pool_size_2)
-        self.conv_2 = Conv2D(filters=n_input_channels // n_scales, kernel_size=(1, 1), padding='same',
+        self.conv_2 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_2 = UpSampling2D(size=pool_size_2, interpolation='bilinear')
 
         # scale 3 (4x4 Output)
         pool_size_3 = (input_shape[0] // 4, input_shape[1] // 4)
         self.avg_pool_3 = AveragePooling2D(pool_size_3)
-        self.conv_3 = Conv2D(filters=n_input_channels // n_scales, kernel_size=(1, 1), padding='same',
+        self.conv_3 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_3 = UpSampling2D(size=pool_size_3, interpolation='bilinear')
 
         # scale 4 (8x8 Output)
         pool_size_4 = (input_shape[0] // 8, input_shape[1] // 8)
         self.avg_pool_4 = AveragePooling2D(pool_size_4)
-        self.conv_4 = Conv2D(filters=n_input_channels // n_scales, kernel_size=(1, 1), padding='same',
+        self.conv_4 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_4 = UpSampling2D(size=pool_size_4, interpolation='bilinear')
-
-        # final convolution of concatenated feature maps
-        self.conv_final = Conv2D(filters=n_input_channels, kernel_size=(1, 1), padding='same',
-                            kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
 
         # final up-sampling
         self.upsample_final = UpSampling2D(size=(2, 2), interpolation='bilinear')
@@ -114,9 +111,6 @@ class PPM(Model):
         # concatenate feature maps
         x = tf.concat((x, x_1, x_2, x_3, x_4), 3)
 
-        # apply convolutional layer to reduce number of channels to number of input channels
-        x = self.conv_final(x)
-
         # up-sample fused features maps
         x = self.upsample_final(x)
 
@@ -139,13 +133,15 @@ class ResidualBlock(Model):
         :param weight_decay: multiplicative factor for l2 weight regularization
         """
         super(ResidualBlock, self).__init__()
-        self.conv_1 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same',
+        self.conv_1 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same', use_bias=False,
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.in_1 = LayerNormalization(axis=(1, 2))
         self.relu = ReLU()
-        self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same',
+        self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same', use_bias=False,
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_2 = LayerNormalization(axis=(1, 2))
+        self.out = Sequential()
+        self.out.add(LayerNormalization(axis=(1, 2)))
+        self.out.add(ReLU())
 
     @tf.function
     def call(self, x):
@@ -158,13 +154,12 @@ class ResidualBlock(Model):
         x = self.in_1(x)
         x = self.relu(x)
         x = self.conv_2(x)
-        x = self.in_2(x)
 
         # skip-connection
         x += identity
 
         # apply ReLU activation
-        x = self.relu(x)
+        x = self.out(x)
 
         return x
 
@@ -230,6 +225,7 @@ class SegmentationNetwork(Model):
         self.block_4 = Sequential((self.conv_block_4, self.upsample, self.conv_block_5, self.ref_padding_2,
                                    self.conv_final))
 
+    @tf.function
     def call(self, x):
         x = self.block_1(x)
         x = self.block_2(x)
@@ -256,18 +252,28 @@ if __name__ == '__main__':
     image_2 = tf.image.resize(tf.image.per_image_standardization(image_2), (128, 128), preserve_aspect_ratio=False)
     image_2 = tf.expand_dims(image_2, 0)
     image_batch = tf.concat((image_1, image_2), 0)
-    plt.imshow(image_2[0].numpy())
-    plt.show()
-
-    # initializer
-    init_gain = 1.0
-
-    # weight decay
-    weight_decay = 1e-4
 
     # create network object
-    f = SegmentationNetwork(n_classes=2, init_gain=init_gain, weight_decay=weight_decay)
+    f = SegmentationNetwork(n_classes=2, init_gain=0.8, weight_decay=1e-4)
 
     # forward pass
-    output = f(image_batch)
-    print('Output Shape: ', output.shape)
+    mask_batch = f(image_batch)
+    print('Output Shape: ', mask_batch.shape)
+
+    fig, ax = plt.subplots(2, 2)
+    image_1 = image_1[0].numpy()
+    image_1 -= np.min(image_1)
+    image_1 /= (np.max(image_1) - np.min(image_1))
+    image_2 = image_2[0].numpy()
+    image_2 -= np.min(image_2)
+    image_2 /= (np.max(image_2) - np.min(image_2))
+    mask_1 = Softmax(axis=2)(mask_batch[0]).numpy()[:, :, 1]
+    mask_2 = Softmax(axis=2)(mask_batch[1]).numpy()[:, :, 1]
+
+    # plot images and masks
+    ax[0, 0].imshow(image_1)
+    ax[1, 0].imshow(image_2)
+    ax[0, 1].imshow(mask_1, cmap='gray')
+    ax[1, 1].imshow(mask_2, cmap='gray')
+    plt.show()
+

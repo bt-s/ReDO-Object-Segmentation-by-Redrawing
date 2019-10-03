@@ -1,9 +1,9 @@
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
+from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
 from network_components import SelfAttentionModule, SpectralNormalization
-
+from generator import Generator
 
 ##################
 # Residual Block #
@@ -29,11 +29,9 @@ class ResidualBlock(Layer):
         # residual pipeline
         self.conv_1 = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(3, 3), strides=stride, padding='same',
                                        kernel_initializer=orthogonal(gain=init_gain)))
-        self.in_1 = LayerNormalization(axis=(1, 2))
         self.relu = ReLU()
         self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(3, 3), padding='same',
                                        kernel_initializer=orthogonal(gain=init_gain)))
-        self.in_2 = LayerNormalization(axis=(1, 2))
 
     @tf.function
     def call(self, x, training):
@@ -43,10 +41,8 @@ class ResidualBlock(Layer):
 
         # pass input through pipeline
         x = self.conv_1(x, training)
-        x = self.in_1(x)
         x = self.relu(x)
         x = self.conv_2(x, training)
-        x = self.in_2(x)
 
         # skip-connection
         x += identity
@@ -112,8 +108,21 @@ class Discriminator(Model):
 
 if __name__ == '__main__':
 
-    init_gain = 0.8
-    discriminator = Discriminator(init_gain=init_gain)
-    input = tf.random.normal([10, 128, 128, 3])
-    output = discriminator(input, training=True)
-    print(output)
+    discriminator = Discriminator(init_gain=0.8)
+    generator = Generator(init_gain=1.0)
+    generator.set_region(0)
+    input_path_1 = 'Datasets/Birds/images/001.Black_footed_Albatross/Black_Footed_Albatross_0001_796111.jpg'
+    label_path_1 = 'Datasets/Birds/labels/001.Black_footed_Albatross/Black_Footed_Albatross_0001_796111.png'
+    image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
+    image_real = tf.image.resize(image_real, (128, 128), preserve_aspect_ratio=False)
+    image_real = tf.expand_dims(tf.image.per_image_standardization(image_real), 0)
+    mask = tf.image.decode_png(tf.io.read_file(label_path_1))
+    mask = tf.expand_dims(tf.image.resize(mask, (128, 128), preserve_aspect_ratio=False), 0)
+    mask = (mask / 255.0 * 2) - 1.0
+    mask = tf.concat((mask, -1 * mask), axis=3)
+    image_fake, z_k = generator(image_real, mask, noise_dim=32, training=True)
+
+    d_logits_real = discriminator(image_real, training=True)
+    d_logits_fake = discriminator(image_fake, training=True)
+    print('Logits real: ', d_logits_real)
+    print('Logits fake: ', d_logits_fake)

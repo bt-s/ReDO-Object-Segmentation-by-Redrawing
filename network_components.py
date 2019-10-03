@@ -48,6 +48,7 @@ class SpectralNormalization(Layer):
         if training:
             self.u = u
 
+    @tf.function
     def power_iteration(self, W, n_iter=1):
         """
         Compute approximate spectral norm. According to paper n_iter = 1 is sufficient due to updated u.
@@ -55,9 +56,9 @@ class SpectralNormalization(Layer):
         :param n_iter: number of power iterations
         :return: approximate spectral norm and updated singular vector approximation.
         """
-
+        u = tf.random.normal([W.shape[0], 1])
         for _ in range(n_iter):
-            v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
+            v = self.normalize_l2(tf.matmul(W, u, transpose_a=True))
             u = self.normalize_l2(tf.matmul(W, v))
             spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
@@ -126,6 +127,7 @@ class SelfAttentionModule(Layer):
         x = tf.matmul(weights, V)
         return x
 
+    @tf.function
     def call(self, x, training):
 
         H, W, C = x.shape.as_list()[1:]  # width, height, channel
