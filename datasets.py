@@ -1,6 +1,5 @@
 import tensorflow as tf
 import os
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -378,9 +377,12 @@ if __name__ == '__main__':
     faces_validation = Faces.get_split(split='validation', size=400, shuffle=True)
     faces_test = Faces.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in enumerate(birds_training):
+    for idx, (batch_images, batch_labels) in enumerate(flowers_training):
         for image, label in zip(batch_images, batch_labels):
             fig, ax = plt.subplots(1, 2)
-            ax[0].imshow(image.numpy())
+            image = image.numpy()
+            image -= np.min(image)
+            image /= (np.max(image) - np.min(image))
+            ax[0].imshow(image)
             ax[1].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()
