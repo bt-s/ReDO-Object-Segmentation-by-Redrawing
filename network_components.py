@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
 
@@ -22,7 +21,6 @@ class SpectralNormalization(Layer):
         self.n_power_iterations = n_power_iterations
         self.u = None  # u cannot be initialized here, since kernel shape is not known yet
 
-    @tf.function
     def normalize_weights(self, training=True):
         """
         Normalize the Conv2D layer's weights w.r.t. their spectral norm.
@@ -31,15 +29,13 @@ class SpectralNormalization(Layer):
 
         filters = self.layer.weights[0].shape.as_list()[-1]  # number of filter kernels in Conv2D layer
 
-        # first iteration, u has to be initialized
-        if self.u is None:
-            self.u = tf.random.normal([filters, 1])
-
         # reshape kernel weights
         W = tf.reshape(self.layer.weights[0], [filters, -1])
 
         # compute spectral norm and singular value approximation
         spectral_norm, u = self.power_iteration(W)
+
+        #print('SN: ', spectral_norm)
 
         # normalize kernel weights
         self.layer.weights[0].assign(self.layer.weights[0] / spectral_norm)
@@ -48,7 +44,6 @@ class SpectralNormalization(Layer):
         if training:
             self.u = u
 
-    @tf.function
     def power_iteration(self, W, n_iter=1):
         """
         Compute approximate spectral norm. According to paper n_iter = 1 is sufficient due to updated u.
@@ -56,9 +51,11 @@ class SpectralNormalization(Layer):
         :param n_iter: number of power iterations
         :return: approximate spectral norm and updated singular vector approximation.
         """
-        u = tf.random.normal([W.shape[0], 1])
+        if self.u is None:
+            self.u = tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1])
+
         for _ in range(n_iter):
-            v = self.normalize_l2(tf.matmul(W, u, transpose_a=True))
+            v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
             u = self.normalize_l2(tf.matmul(W, v))
             spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
@@ -75,7 +72,6 @@ class SpectralNormalization(Layer):
 
         return v / (tf.math.reduce_sum(v ** 2) ** 0.5 + epsilon)
 
-    @tf.function
     def call(self, x, training):
 
         # perform forward pass of Conv2D layer on first iteration to initialize weights
@@ -127,7 +123,6 @@ class SelfAttentionModule(Layer):
         x = tf.matmul(weights, V)
         return x
 
-    @tf.function
     def call(self, x, training):
 
         H, W, C = x.shape.as_list()[1:]  # width, height, channel
@@ -144,5 +139,6 @@ class SelfAttentionModule(Layer):
 
         # add weighted attention maps to input feature maps
         output = self.gamma * o + x
+        #print('SA_Gamma: ', self.gamma)
 
         return output

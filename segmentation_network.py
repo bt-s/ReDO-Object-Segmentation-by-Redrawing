@@ -24,7 +24,6 @@ class ConvolutionalBlock(Model):
         self.conv_block.add(LayerNormalization(axis=(1, 2), center=False, scale=False))
         self.conv_block.add(ReLU())
 
-    @tf.function
     def call(self, x):
         x = self.conv_block(x)
         return x
@@ -85,7 +84,6 @@ class PPM(Model):
         # final up-sampling
         self.upsample_final = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
-    @tf.function
     def call(self, x):
 
         # scale 1
@@ -143,7 +141,6 @@ class ResidualBlock(Model):
         self.out.add(LayerNormalization(axis=(1, 2)))
         self.out.add(ReLU())
 
-    @tf.function
     def call(self, x):
 
         # store input for skip-connection
@@ -176,7 +173,6 @@ class ReflectionPadding2D(Layer):
         self.padding = tuple(padding)
         super(ReflectionPadding2D, self).__init__()
 
-    @tf.function
     def call(self, x):
         w_pad, h_pad = self.padding
         return tf.pad(x, [[0, 0], [h_pad, h_pad], [w_pad, w_pad], [0, 0]], 'REFLECT')
@@ -225,7 +221,6 @@ class SegmentationNetwork(Model):
         self.block_4 = Sequential((self.conv_block_4, self.upsample, self.conv_block_5, self.ref_padding_2,
                                    self.conv_final))
 
-    @tf.function
     def call(self, x):
         x = self.block_1(x)
         x = self.block_2(x)

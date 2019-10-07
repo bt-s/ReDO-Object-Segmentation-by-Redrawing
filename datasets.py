@@ -282,7 +282,7 @@ class FaceDataset(Dataset):
                                                   for i, path in enumerate(self.paths) if
                                                   self.split_key[split] == self.split_keys[i]])
 
-        if split == 'training':
+        if split == 'training' or 'validation':
             split_label_paths = tf.convert_to_tensor([os.path.join(self.root, self.image_dir, (path[:-9] + '/' + path))
                                                       for i, path in enumerate(self.paths) if
                                                       self.split_key[split] == self.split_keys[i]])

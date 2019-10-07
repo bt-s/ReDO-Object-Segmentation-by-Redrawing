@@ -13,7 +13,7 @@ if __name__ == '__main__':
 
     # create datasets
     dataset = FlowerDataset()
-    test_dataset = dataset.get_split('test', batch_size=25)
+    test_dataset = dataset.get_split('validation', batch_size=25)
 
     # initializer
     init_gain = 1.0
@@ -55,7 +55,7 @@ if __name__ == '__main__':
             image -= np.min(image)
             ax[0].imshow(image)
             ax[1].set_title('Prediction')
-            ax[1].imshow(tf.keras.layers.Softmax(axis=2)(prediction).numpy()[:, :, 0], cmap='gray')
+            ax[1].imshow(tf.keras.layers.Softmax(axis=2)(prediction).numpy()[:, :, 1], cmap='gray')
             ax[2].set_title('Label')
             ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()

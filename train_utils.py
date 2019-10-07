@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Softmax
 from tensorflow.keras.losses import Loss, BinaryCrossentropy, CategoricalCrossentropy
-import collections
+
 
 #####################
 # Unsupervised Loss #
@@ -12,28 +12,26 @@ class UnsupervisedLoss(Loss):
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
-    @tf.function
-    def get_generator_loss(self, discriminator_output_fake, noise_vector, estimated_noise_vector):
+    def get_g_loss(self, d_logits_fake, z_k, z_k_hat):
 
         # compute generator loss | discriminator prediction of fake images should be 1
-        adversarial_loss = -1 * tf.reduce_mean(discriminator_output_fake)
-        information_conservation_loss = self.lambda_z * \
-                                tf.reduce_mean(tf.norm(tf.math.subtract(noise_vector, estimated_noise_vector), axis=1))
+        g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
+        g_loss_i = self.lambda_z * tf.reduce_mean(tf.norm(z_k - z_k_hat, axis=1))
 
-        return adversarial_loss, information_conservation_loss
+        return g_loss_d, g_loss_i
 
     @staticmethod
-    def get_discriminator_loss(discriminator_output_real, discriminator_output_fake):
+    def get_d_loss(d_logits_real, d_logits_fake):
 
         # compute both parts of discriminator loss | prediction of fake images should be 0, prediction of real
         # images should be 1
-        zeros_f = tf.fill(discriminator_output_fake.shape, 0.0)
-        zeros_r = tf.fill(discriminator_output_real.shape, 0.0)
+        zeros_f = tf.fill(d_logits_fake.shape, 0.0)
+        zeros_r = tf.fill(d_logits_real.shape, 0.0)
 
-        discriminator_loss_fake = tf.reduce_mean(tf.math.maximum(zeros_f, 1+discriminator_output_fake))
-        discriminator_loss_real = tf.reduce_mean(tf.math.maximum(zeros_r, 1-discriminator_output_real))
+        d_loss_r = tf.reduce_mean(tf.math.maximum(zeros_r, 1-d_logits_real))
+        d_loss_f = tf.reduce_mean(tf.math.maximum(zeros_f, 1+d_logits_fake))
 
-        return discriminator_loss_real, discriminator_loss_fake
+        return d_loss_r, d_loss_f
 
 
 ###################
@@ -81,12 +79,16 @@ def log_epoch(metrics, tensorboard_writers, epoch, scheme):
 
         # log epoch summary for tensorboard
         with tensorboard_writers['train_writer'].as_default():
-            tf.summary.scalar('Generator Loss', metrics['g_loss_train'].result(), step=epoch)
-            tf.summary.scalar('Discriminator Loss', metrics['d_loss_train'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss Fake', metrics['g_d_loss_train'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss Inf', metrics['g_i_loss_train'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss Fake', metrics['d_f_loss_train'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss Real', metrics['d_r_loss_train'].result(), step=epoch)
 
         with tensorboard_writers['val_writer'].as_default():
-            tf.summary.scalar('Generator Loss', metrics['g_loss_val'].result(), step=epoch)
-            tf.summary.scalar('Discriminator Loss', metrics['d_loss_val'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss Fake', metrics['g_d_loss_val'].result(), step=epoch)
+            tf.summary.scalar('Generator Loss Inf', metrics['g_i_loss_val'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss Fake', metrics['d_f_loss_val'].result(), step=epoch)
+            tf.summary.scalar('Discriminator Loss Real', metrics['d_r_loss_val'].result(), step=epoch)
 
         # print summary at the end of epoch
         epoch_summary = 'Epoch {} | Training (Generator D|I: {:.6f}|{:.6f}, Discriminator F|R: {:.6f}|{:.6f}) | ' \
