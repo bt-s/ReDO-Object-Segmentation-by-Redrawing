@@ -19,9 +19,9 @@ class ConvolutionalBlock(Model):
     def __init__(self, filters, kernel_size, padding, stride, init_gain, weight_decay):
         super(ConvolutionalBlock, self).__init__()
         self.conv_block = Sequential()
-        self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size, padding=padding, strides=stride,
+        self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size, padding=padding, strides=stride, use_bias=False,
                             kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay)))
-        self.conv_block.add(LayerNormalization(axis=(1, 2), center=False, scale=False))
+        self.conv_block.add(LayerNormalization(axis=(1, 2), center=True, scale=True))
         self.conv_block.add(ReLU())
 
     def call(self, x):
@@ -133,12 +133,12 @@ class ResidualBlock(Model):
         super(ResidualBlock, self).__init__()
         self.conv_1 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same', use_bias=False,
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = LayerNormalization(axis=(1, 2))
+        self.in_1 = LayerNormalization(axis=(1, 2), center=True, scale=True)
         self.relu = ReLU()
-        self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same', use_bias=False,
+        self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3), padding='same', use_bias=True,
                              kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
         self.out = Sequential()
-        self.out.add(LayerNormalization(axis=(1, 2)))
+        self.out.add(LayerNormalization(axis=(1, 2), center=True, scale=True))
         self.out.add(ReLU())
 
     def call(self, x):
@@ -216,8 +216,13 @@ class SegmentationNetwork(Model):
         self.conv_block_5 = ConvolutionalBlock(filters=17, kernel_size=(3, 3), padding='same', stride=1,
                                                init_gain=init_gain, weight_decay=weight_decay)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
-        self.conv_final = Conv2D(filters=self.n_classes, kernel_size=(7, 7), padding='valid',
+        if self.n_classes != 2:
+            self.conv_final = Conv2D(filters=self.n_classes, kernel_size=(7, 7), padding='valid', use_bias=True,
                                 kernel_initializer=orthogonal(gain=init_gain), kernel_regularizer=L1L2(l2=weight_decay))
+        else:
+            self.conv_final = Conv2D(filters=1, kernel_size=(7, 7), padding='valid', use_bias=True,
+                                     kernel_initializer=orthogonal(gain=init_gain),
+                                     kernel_regularizer=L1L2(l2=weight_decay))
         self.block_4 = Sequential((self.conv_block_4, self.upsample, self.conv_block_5, self.ref_padding_2,
                                    self.conv_final))
 
@@ -225,14 +230,13 @@ class SegmentationNetwork(Model):
         x = self.block_1(x)
         x = self.block_2(x)
         x = self.block_3(x)
-        output = self.block_4(x)
-        return output
-
-    def set_name(self, name):
-        """
-        Set name of the model for model saving.
-        """
-        self.model_name = name
+        x = self.block_4(x)
+        if self.n_classes == 2:
+            x = tf.math.sigmoid(x)
+            x = tf.concat((x, 1-x), axis=3)
+        else:
+            x = Softmax(axis=3)(x)
+        return x
 
 
 if __name__ == '__main__':
