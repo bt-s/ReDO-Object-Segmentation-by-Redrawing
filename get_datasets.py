@@ -288,7 +288,7 @@ if not download_args.flowers and \
         not download_args.faces and \
         not download_args.birds:
     configure_birds(root_dataset_dir)
-    configure_faces(root_dataset_dir)
+    # configure_faces(root_dataset_dir)
     configure_flowers(root_dataset_dir)
 elif download_args.birds:
     configure_birds(root_dataset_dir)
