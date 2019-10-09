@@ -6,10 +6,9 @@ import numpy as np
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.initializers import orthogonal
 from network_components import SelfAttentionModule, SpectralNormalization
-from information_network import *
+from discriminator import Discriminator
+from information_network import InformationConservationNetwork
 from train_utils import UnsupervisedLoss
-from discriminator import *
-from segmentation_network import *
 
 
 ###################################
@@ -18,7 +17,7 @@ from segmentation_network import *
 
 class ConditionalBatchNormalization(Layer):
     """
-    Conditional Batch Normalization Layer. Use a two-layer MLP to learn a function for gamma and beta instead of
+    Conditional Batch Normalization Layer. Use Conv2D layers to learn a function for gamma and beta instead of
     directly learning the shift and scale parameters of the BN layer.
     """
     def __init__(self, filters, init_gain):
@@ -28,9 +27,9 @@ class ConditionalBatchNormalization(Layer):
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
 
         # learnable functions for mapping of noise vector to scale and shift parameters gamma and beta
-        self.gamma = Conv2D(filters=filters, kernel_size=(1, 1),
+        self.gamma = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
                             padding='same', kernel_initializer=orthogonal(gain=init_gain))
-        self.beta = Conv2D(filters=filters, kernel_size=(1, 1),
+        self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
                             padding='same', kernel_initializer=orthogonal(gain=init_gain))
 
     def call(self, x, z_k):
@@ -41,9 +40,6 @@ class ConditionalBatchNormalization(Layer):
         # get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
-
-        #print('Gamma_C: ', gamma_c)
-        #print('Beta_C: ', beta_c)
 
         # compute output
         x = gamma_c * x + beta_c
@@ -202,31 +198,31 @@ class ClassGenerator(Model):
         # computational block 5 | output block
         self.block_5 = OutputBlock(init_gain=init_gain, base_channels=self.base_channels, output_factor=1)
 
-    def call(self, batch_images_real, batch_masks_logits, n_input, training):
+    def call(self, batch_images_real, batch_masks, n_input, training):
         """
         Forward pass of the generator network. Create a batch of fake images.
         :param batch_images_real: batch of images taken from the dataset
-        :param batch_masks_logits: extracted segmentation masks | shape: [batch_size, height, width, n_classes-1]
+        :param batch_masks: extracted segmentation masks | shape: [batch_size, height, width, n_classes-1]
         :param n_input: dimensionality of the noise vector
         :param training: current network phase to switch between modes for CBN layers
         :return: batch of fake images | shape: [batch_size, height, width, 3]
         """
 
         # batch size
-        batch_size = batch_masks_logits.shape[0]
+        batch_size = batch_masks.shape[0]
 
         # number of different regions
-        n_regions = batch_masks_logits.shape[3]
+        n_regions = batch_masks.shape[3]
 
         # sample noise vector
         z_k = tf.random.normal([batch_size, 1, 1, n_input])
 
+        # get masks for region k
+        batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
+
         # re-draw image
         batch_images_fake = tf.zeros(batch_images_real.shape)
         for k in range(n_regions):
-
-            # get region mask
-            batch_masks_k = tf.expand_dims(Softmax(axis=3)(batch_masks_logits)[:, :, :, k], axis=3)
 
             # re-draw sampled region
             if k == self.k:
@@ -245,7 +241,12 @@ class ClassGenerator(Model):
 
             # re-use input image for other regions
             else:
-                batch_images_fake += batch_images_real * batch_masks_k
+                if n_regions == 2:
+                    batch_masks_inv = 1.0 - batch_masks_k
+                else:
+                    batch_masks_inv = tf.expand_dims(batch_masks[:, :, :, k], axis=3)
+
+                batch_images_fake += batch_images_real * batch_masks_inv
 
         return batch_images_fake, batch_region_k_fake, z_k[:, 0, 0, :]
 
@@ -278,32 +279,41 @@ class Generator(Model):
         self.class_generators = [ClassGenerator(init_gain=init_gain, k=k, base_channels=base_channels)
                                   for k in range(self.n_classes)]
 
-        # information conservation network
-        self.information_network = InformationConservationNetwork(init_gain=init_gain, n_classes=n_classes,
-                                                                  n_output=n_input)
-
-    def call(self, batch_images_real, batch_masks_logits, k, update_generator, training):
+    def call(self, batch_images_real, batch_masks, update_generator, training):
         """
         Generate fake images by separately redrawing each class using the segmentation masks for each image in the batch
         :param batch_images_real: batch of training images | shape: [batch_size, 128, 128, 3]
-        :param batch_masks_logits: raw predictions of segmentation network | shape: [batch_size, 128, 128, n_classes]
+        :param batch_masks: predictions of segmentation network | shape: [batch_size, 128, 128, n_classes]
         :param update_generator: True if function called during generator update. Returns noise vector and estimated
         noise vector along with batch of fake images.
         :param training: True if function called during training.
         :return: batch of fake images redrawn for each class | shape: [batch_size*n_classes, 128, 128, 3]
         """
 
-        # get batch of fake images for respective region
-        batch_images_fake, batch_region_fake, batch_z_k = self.class_generators[k](batch_images_real, batch_masks_logits,
+        batch_images_fake = None
+        batch_z_k = None
+        batch_regions_fake = None
+
+        for k in range(self.n_classes):
+
+            # get batch of fake images for respective region
+            batch_images_k_fake, batch_region_k_fake, z_k = self.class_generators[k](batch_images_real, batch_masks,
                                                                 n_input=self.n_input, training=training)
 
-        # get noise vector estimate during generator update
-        if update_generator:
-            batch_z_k_hat = self.information_network(batch_region_fake, k, training)
+            if batch_images_fake is None:
+                batch_images_fake = batch_images_k_fake
+                batch_regions_fake = batch_region_k_fake
+                if update_generator:
+                    batch_z_k = z_k
+            else:
+                batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=0)
+                if update_generator:
+                    batch_z_k = tf.concat((batch_z_k, z_k), axis=0)
+                    batch_regions_fake += batch_region_k_fake
 
         # return batch of fake images
         if update_generator:
-            return batch_images_fake, batch_z_k, batch_z_k_hat
+            return batch_images_fake, batch_regions_fake, batch_z_k
         else:
             return batch_images_fake
 
@@ -315,6 +325,9 @@ if __name__ == '__main__':
 
     # discriminator network
     discriminator = Discriminator(init_gain=1.0)
+
+    # information network
+    information_network = InformationConservationNetwork(init_gain=1.0, n_classes=2, n_output=32)
 
     # create optimizer object
     optimizer = Adam(learning_rate=1e-1, beta_1=0, beta_2=0.9)
@@ -334,9 +347,11 @@ if __name__ == '__main__':
     mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * background_color, mask >= 1.1 * background_color)
                                            , 10, -10), tf.float32)[:, :, :, 0], 3)
     masks = tf.concat((mask, -1*mask), axis=3)
+    masks = tf.math.sigmoid(masks)
 
     with tf.GradientTape() as tape:
-        batch_image_fake, z_k, z_k_hat = generator(image_real, masks, update_generator=True, training=True)
+        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks, update_generator=True, training=True)
+        z_k_hat = information_network(batch_regions_fake, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k_hat)
         g_loss = g_loss_d + g_loss_i

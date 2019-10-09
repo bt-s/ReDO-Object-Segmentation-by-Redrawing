@@ -52,7 +52,7 @@ class SpectralNormalization(Layer):
         :return: approximate spectral norm and updated singular vector approximation.
         """
         if self.u is None:
-            self.u = tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1])
+            self.u = tf.Variable(tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1]), trainable=False)
 
         for _ in range(n_iter):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))

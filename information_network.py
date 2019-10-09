@@ -39,10 +39,9 @@ class InformationConservationNetwork(Model):
         self.block_4 = AveragePooling2D(pool_size=(4, 4), padding='same')
 
         # dense classification layer
-        self.final_layers = [Dense(units=n_output, kernel_initializer=orthogonal(gain=init_gain))
-                             for _ in range(self.n_classes)]
+        self.final_layer = Dense(units=self.n_classes*n_output, kernel_initializer=orthogonal(gain=init_gain))
 
-    def call(self, x, k, training):
+    def call(self, x, training):
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)
@@ -51,9 +50,8 @@ class InformationConservationNetwork(Model):
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
         x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * self.block_4.pool_size[1]
-        x = self.final_layers[k](x)
+        x = self.final_layer(x)
+        x = tf.reshape(x, [x.shape[0]*self.n_classes, -1])
         return x
 
-    def set_name(self, name):
-        self.model_name = name
 

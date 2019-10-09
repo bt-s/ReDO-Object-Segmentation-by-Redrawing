@@ -5,7 +5,6 @@ from tensorflow.keras.initializers import orthogonal
 from network_components import SelfAttentionModule, SpectralNormalization
 import numpy as np
 from tensorflow.keras.optimizers import Adam
-from generator import *
 from train_utils import UnsupervisedLoss
 
 

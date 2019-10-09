@@ -13,16 +13,16 @@ if __name__ == '__main__':
 
     # create datasets
     dataset = FlowerDataset()
-    test_dataset = dataset.get_split('validation', batch_size=25)
+    test_dataset = dataset.get_split('test', batch_size=25)
 
     # initializer
-    init_gain = 1.0
+    init_gain = 0.8
 
     # create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes, init_gain=init_gain, weight_decay=1e-4)
-    model.set_name('Segmentation_Network')
-    epoch = 1
-    model.load_weights('Weights/' + session_name + '/' + str(model.model_name) + '/Epoch_' + str(epoch) + '/')
+    epoch = 13
+    batch_id = 200
+    model.load_weights('Weights/' + session_name + '/' + str(model.model_name) + '/Epoch_' + str(epoch) + 'batch_' + str(batch_id) + '/')
 
     # loss function
     loss = SupervisedLoss()
@@ -55,7 +55,7 @@ if __name__ == '__main__':
             image -= np.min(image)
             ax[0].imshow(image)
             ax[1].set_title('Prediction')
-            ax[1].imshow(tf.keras.layers.Softmax(axis=2)(prediction).numpy()[:, :, 1], cmap='gray')
+            ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray')
             ax[2].set_title('Label')
             ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()
