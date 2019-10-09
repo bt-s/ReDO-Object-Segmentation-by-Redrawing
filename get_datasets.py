@@ -27,7 +27,7 @@ from scipy.io import loadmat
 from PIL import Image
 
 from operator import itemgetter
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Action
 from sys import argv
 from pathlib import Path
 from shutil import rmtree
@@ -38,9 +38,12 @@ import datasets
 
 def parse_download_args():
     parser = ArgumentParser()
-    parser.add_argument('-f', '--flowers', action='store_true')
-    parser.add_argument('-b', '--birds', action='store_true')
-    parser.add_argument('-t', '--faces', action='store_true')
+    parser.add_argument('-f', '--flowers', action='append_const',
+                        const='flowers', dest='datasets')
+    parser.add_argument('-b', '--birds', action='append_const', const='birds',
+                        dest='datasets')
+    parser.add_argument('-t', '--faces', action='append_const', const='faces',
+                        dest='datasets')
     return parser.parse_args(argv[1:])
 
 
@@ -279,20 +282,15 @@ def configure_birds(datasets_dir):
     _rm_dirs([default_extract_dir, default_segmentations_path])
 
 
+SUPPORTED_DATASETS = {'flowers': configure_flowers, 'birds': configure_birds}
+
 root_dataset_dir = Path('Datasets')
 root_dataset_dir.mkdir(exist_ok=True)
 
 download_args = parse_download_args()
 
-if not download_args.flowers and \
-        not download_args.faces and \
-        not download_args.birds:
-    configure_birds(root_dataset_dir)
-    # configure_faces(root_dataset_dir)
-    configure_flowers(root_dataset_dir)
-elif download_args.birds:
-    configure_birds(root_dataset_dir)
-elif download_args.faces:
-    configure_faces(root_dataset_dir)
-elif download_args.flowers:
-    configure_flowers(root_dataset_dir)
+if not download_args.datasets:
+    download_args.datasets = SUPPORTED_DATASETS.keys()
+
+for ds_key in download_args.datasets:
+    SUPPORTED_DATASETS[ds_key](root_dataset_dir)
