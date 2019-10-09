@@ -9,7 +9,7 @@ import numpy as np
 
 
 class Dataset:
-
+    SPLIT_KEYS = {'training': 0, 'validation': 1, 'test': 2}
     def __init__(self, root, image_dir, label_dir, path_file, split_file):
         self.root = root  # relative path to root directory of the dataset
         self.image_dir = image_dir  # sub-directory containing images
