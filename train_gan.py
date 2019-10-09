@@ -10,6 +10,7 @@ from train_utils import UnsupervisedLoss, log_epoch
 from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
+from information_network import InformationConservationNetwork
 
 
 if __name__ == '__main__':
@@ -32,7 +33,7 @@ if __name__ == '__main__':
     n_classes = dataset.n_classes
 
     # initialization gain for orthogonal initialization
-    init_gain = 0.8
+    init_gain = 1.0
 
     # weight decay factor for segmentation network
     weight_decay = 1e-4
@@ -57,8 +58,11 @@ if __name__ == '__main__':
     # discriminator network
     discriminator = Discriminator(init_gain=init_gain)
 
+    # information conservation network
+    information_network = InformationConservationNetwork(init_gain=init_gain, n_classes=n_classes, n_output=n_input)
+
     # dictionary of all relevant networks for adversarial training
-    models = {'F': segmentation_network, 'G': generator, 'D': discriminator}
+    models = {'F': segmentation_network, 'G': generator, 'D': discriminator, 'I': information_network}
 
     # loss function
     lambda_z = 5.0  # multiplicative factor for information conservation loss
@@ -67,6 +71,7 @@ if __name__ == '__main__':
     # define optimizer
     g_optimizer = Adam(learning_rate=1e-4, beta_1=0, beta_2=0.9)  # optimizer for the generator
     d_optimizer = Adam(learning_rate=1e-4, beta_1=0, beta_2=0.9)  # optimizer for the discriminator
+    i_optimizer = Adam(learning_rate=1e-4, beta_1=0, beta_2=0.9)  # optimizer for the information network
     f_optimizer = Adam(learning_rate=1e-5, beta_1=0, beta_2=0.9)  # optimizer for the segmentation network
 
     # set number of training epochs
@@ -85,18 +90,11 @@ if __name__ == '__main__':
     val_writer = tf.summary.create_file_writer(validation_log_dir)
     tensorboard_writers = {'train_writer': train_writer, 'val_writer': val_writer}
 
-    # initialize weights
-    batch_images_init = tf.random.normal([batch_size, 128, 128, 3])
-    batch_masks_init = tf.random.normal([batch_size, 128, 128, 2])
-    for k in range(n_classes):
-        batch_images_fake, z_k, z_k_hat = models['G'](batch_images_init, batch_masks_init, k=k, update_generator=True,
-                                      training=True)
-
     ########################
     # Discriminator Update #
     ########################
 
-    def discriminator_update(batch_images_real, k, training):
+    def discriminator_update(batch_images_real, training):
 
         # activate gradient tape
         with tf.GradientTape() as tape:
@@ -105,7 +103,7 @@ if __name__ == '__main__':
             batch_masks_logits = models['F'](batch_images_real)
 
             # get fake images from generator | number of images generated = batch_size * n_classes
-            batch_images_fake = models['G'](batch_images_real, batch_masks_logits, k=k, update_generator=False, training=training)
+            batch_images_fake = models['G'](batch_images_real, batch_masks_logits, update_generator=False, training=training)
 
             # get logits for real and fake images
             d_logits_real = models['D'](batch_images_real, training)
@@ -130,17 +128,19 @@ if __name__ == '__main__':
     # Generator Update #
     ####################
 
-    def generator_update(batch_images_real, k, training):
+    def generator_update(batch_images_real, training):
 
         # activate gradient tape
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
 
             # get segmentation masks
-            batch_masks_logits = models['F'](batch_images_real)
+            batch_masks = models['F'](batch_images_real)
 
             # get fake images from generator | number of images generated = batch_size * n_classes
-            batch_images_fake, batch_z_k, batch_z_k_hat = \
-                models['G'](batch_images_real, batch_masks_logits, k, update_generator=True, training=training)
+            batch_images_fake, batch_regions_fake, batch_z_k = \
+                models['G'](batch_images_real, batch_masks, update_generator=True, training=training)
+
+            batch_z_k_hat = models['I'](batch_regions_fake, training=training)
 
             # get logits for fake images
             d_logits_fake = models['D'](batch_images_fake, training)
@@ -156,10 +156,12 @@ if __name__ == '__main__':
             gradients = tape.gradient(g_loss, models['F'].trainable_variables + models['G'].trainable_variables)
             f_gradients = gradients[:len(models['F'].trainable_variables)]
             g_gradients = gradients[-len(models['G'].trainable_variables):]
+            i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
 
             # update weights
             g_optimizer.apply_gradients(zip(g_gradients, models['G'].trainable_variables))
             f_optimizer.apply_gradients(zip(f_gradients, models['F'].trainable_variables))
+            i_optimizer.apply_gradients(zip(i_gradients, models['I'].trainable_variables))
 
         # update summary with computed loss
         metrics['g_d_loss_' + phase](g_loss_d)
@@ -193,21 +195,18 @@ if __name__ == '__main__':
                 # print progress
                 print('Batch: {:d}/{:d}'.format(batch_id + 1, tf.data.experimental.cardinality(datasets[phase])))
 
-                for k in range(n_classes):
-
-                    print('Region: ', k)
-
+                if (batch_id % 2) == 0:
                     # update generator
-                    generator_update(batch_images_real, k, training)
-
+                    generator_update(batch_images_real, training)
+                else:
                     # update discriminator
-                    discriminator_update(batch_images_real, k, training)
+                    discriminator_update(batch_images_real, training)
 
                 # save model weights
-                if ((epoch+1)*batch_id) % 200 == 0:
+                if (batch_id+1) % 100 == 0:
                     for model in models.values():
                         model.save_weights(
-                            'Weights/' + session_name + '/' + model.model_name + '/Iteration_' + str((epoch+1)*batch_id) + '/')
+                            'Weights/' + session_name + '/' + model.model_name + '/Epoch_' + str(epoch+1) + 'batch_' + str(batch_id+1) +  '/')
 
         # log epoch for tensorboard and print summary
         log_epoch(metrics, tensorboard_writers, epoch, scheme='unsupervised')
