@@ -16,7 +16,7 @@ class UnsupervisedLoss(Loss):
 
         # compute generator loss | discriminator prediction of fake images should be 1
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
-        g_loss_i = self.lambda_z * tf.reduce_mean(tf.norm(z_k - z_k_hat, axis=1))
+        g_loss_i = self.lambda_z * tf.reduce_mean((z_k - z_k_hat) * (z_k - z_k_hat))
 
         return g_loss_d, g_loss_i
 
