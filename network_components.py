@@ -85,60 +85,83 @@ class SpectralNormalization(Layer):
         return output
 
 
-#########################
-# Self-Attention Module #
-#########################
-
+# TODO: fix docstring and type-hinting + check for correctness
 class SelfAttentionModule(Layer):
-    def __init__(self, init_gain, output_channels, key_size=None):
+    """Self-attention component for GANs"""
+    def __init__(self, init_gain: float, output_channels: int,
+            key_size: int=None):
+        """Class constructor
+
+        Attributes:
+            init_gain: Initializer gain for orthogonal initialization
+            output_channels: Number of output channels
+        """
         super(SelfAttentionModule, self).__init__()
 
-        # set number of key channels
+        # Set number of key channels
         if key_size is None:
             self.key_size = output_channels // 8
         else:
             self.key_size = key_size
 
-        # trainable parameter to control influence of learned attention maps
+        # Trainable parameter to control influence of learned attention maps
         self.gamma = tf.Variable(0.0, name='self_attention_gamma')
 
-        # learned transformation
-        self.f = SpectralNormalization(Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.g = SpectralNormalization(Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.h = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.out = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+        # Learned transformation
+        self.f = SpectralNormalization(Conv2D(
+            filters=self.key_size, kernel_size=(1, 1),
+            kernel_initializer=orthogonal(gain=init_gain)))
+        self.g = SpectralNormalization(Conv2D(filters=self.key_size,
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+        self.h = SpectralNormalization(Conv2D(filters=output_channels,
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+        self.out = SpectralNormalization(Conv2D(filters=output_channels,
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
 
+
+    # TODO: fix docstring and type-hinting + check for correctness
     @staticmethod
     def compute_attention(Q, K, V):
-        """
-        Compute attention maps from queries, keys and values.
-        :param Q: Queries
-        :param K: Keys
-        :param V: Values
-        :return: attention map with same shape as input feature maps
-        """
+        """Compute attention maps from queries, keys and values
 
+        Args:
+            Q: Queries
+            K: Keys
+            V: Values
+
+        Returns:
+            Attention map with same shape as input feature maps
+        """
         dot_product = tf.matmul(Q, K, transpose_b=True)
         weights = Softmax(axis=2)(dot_product)
         x = tf.matmul(weights, V)
+
         return x
 
+
+    # TODO: fix docstring and type-hinting + check for correctness
     def call(self, x, training):
+        """
 
-        H, W, C = x.shape.as_list()[1:]  # width, height, channel
+        Args:
 
-        # compute query, key and value matrices
+        Returns:
+        """
+        # Height, width, channel
+        H, W, C = x.shape.as_list()[1:]
+
+        # Compute query, key and value matrices
         Q = tf.reshape(self.f(x, training), [-1, H * W, self.key_size])
         K = tf.reshape(self.g(x, training), [-1, H * W, self.key_size])
         V = tf.reshape(self.h(x, training), [-1, H * W, C])
 
-        # compute attention maps
+        # Compute attention maps
         o = self.compute_attention(Q, K, V)
         o = tf.reshape(o, [-1, H, W, C])
         o = self.out(o, training)
 
-        # add weighted attention maps to input feature maps
+        # Add weighted attention maps to input feature maps
         output = self.gamma * o + x
-        #print('SA_Gamma: ', self.gamma)
 
         return output
+

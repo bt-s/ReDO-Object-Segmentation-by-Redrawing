@@ -1,128 +1,191 @@
+#!/usr/bin/python3
+
+"""generator.py - <explanation-here>.
+
+For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
+"""
+
+__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+
+
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, UpSampling2D, AveragePooling2D, Softmax
+from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
+        Conv2D, UpSampling2D, AveragePooling2D, Softmax
 import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.initializers import orthogonal
+
 from network_components import SelfAttentionModule, SpectralNormalization
 from discriminator import Discriminator
 from information_network import InformationConservationNetwork
 from train_utils import UnsupervisedLoss
 
 
-###################################
-# Conditional Batch Normalization #
-###################################
-
 class ConditionalBatchNormalization(Layer):
-    """
-    Conditional Batch Normalization Layer. Use Conv2D layers to learn a function for gamma and beta instead of
-    directly learning the shift and scale parameters of the BN layer.
-    """
+    """Conditional Batch Normalization Layer.
+    Use Conv2D layers to learn a function for gamma and beta instead of directly
+    learning the shift and scale parameters of the BN layer."""
     def __init__(self, filters, init_gain):
+        """Class constructior
+
+        Args:
+            filters (?):
+            init_gain (?):
+        """
         super(ConditionalBatchNormalization, self).__init__()
 
         # Instance Normalization | shifting and scaling switched off
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
 
-        # learnable functions for mapping of noise vector to scale and shift parameters gamma and beta
+        # Learnable functions for mapping of noise vector to scale and shift
+        # parameters gamma and beta
         self.gamma = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
-                            padding='same', kernel_initializer=orthogonal(gain=init_gain))
+                padding='same', kernel_initializer=orthogonal(gain=init_gain))
         self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
-                            padding='same', kernel_initializer=orthogonal(gain=init_gain))
+                padding='same', kernel_initializer=orthogonal(gain=init_gain))
+
 
     def call(self, x, z_k):
+        """To call the CBN layer
 
-        # pass input through Instance Normalization layer
+        Args:
+            x (?):
+            z_k (?):
+
+        Returns:
+            x (?):
+        """
+        # Pass input through Instance Normalization layer
         x = self.in_1(x)
 
-        # get conditional gamma and beta
+        # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
 
-        # compute output
+        # Compute output
         x = gamma_c * x + beta_c
 
         return x
 
 
-#################
-# Initial Block #
-#################
-
 class InputBlock(Layer):
-    """
-    First computational block of the generator network. Includes a fully-connected layer whose output is then reshaped
-    to be able to start applying convolutional layers. CBN and ReLU are also included.
+    """First computational block of the generator network. Includes a
+    fully-connected layer whose output is then reshaped to be able to start
+    applying convolutional layers. CBN and ReLU are also included.
     """
     def __init__(self, init_gain, base_channels, output_factor):
+        """Class constructior
+
+        Args:
+            init_gain (?):
+            base_channels (?):
+            output_factor (?):
+        """
         super(InputBlock, self).__init__()
 
-        # number of output channels
+        # Number of output channels
         self.output_channels = base_channels*output_factor
 
-        # fully-connected layer with number of output channels * 4 * 4 units for reshaping into 4x4 feature maps
-        self.dense = Dense(units=self.output_channels * 4 * 4, kernel_initializer=orthogonal(gain=init_gain))
-        self.cbn = ConditionalBatchNormalization(filters=self.output_channels, init_gain=init_gain)
+        # Fully-connected layer with number of output channels * 4 * 4 units
+        # for reshaping into 4x4 feature maps
+        self.dense = Dense(units=self.output_channels * 4 * 4,
+                kernel_initializer=orthogonal(gain=init_gain))
+        self.cbn = ConditionalBatchNormalization(filters=self.output_channels,
+                init_gain=init_gain)
         self.relu = ReLU()
 
-    def call(self, z_k):
 
-        # reshape output of fully-connected layer
+    def call(self, z_k):
+        """To call the input block layer
+
+        Args:
+            z_k (?):
+
+        Returns:
+            x (?):
+        """
+
+        # Reshape output of fully-connected layer
         x = self.dense(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
-        # apply CBN
+        # Apply CBN
         x = self.cbn(x, z_k)
         x = self.relu(x)
+
         return x
 
 
-##############################
-# Residual Up-sampling Block #
-##############################
-
 class ResidualUpsamplingBlock(Layer):
-    def __init__(self, init_gain, base_channels, input_factor, output_factor, mask_scale):
+    """Description here"""
+    def __init__(self, init_gain, base_channels, input_factor, output_factor,
+            mask_scale):
+        """Class constructior
+
+        Args:
+            init_gain (?):
+            base_channels (?):
+            input_factor (?):
+            output_factor (?):
+            mask_scale (?):
+        """
         super(ResidualUpsamplingBlock, self).__init__()
 
-        # number of input and output channels
+        # Number of input and output channels
         self.output_channels = base_channels*output_factor
         self.input_channels = base_channels*input_factor
 
-        # up-sampling layer
+        # Up-sampling layer
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
-        # perform 1x1 convolutions on the identity to adjust the number of channels to the output of the computational
-        # pipeline
+        # Perform 1x1 convolutions on the identity to adjust the number of
+        # channels to the output of the computational
         self.process_identity = Sequential()
         self.process_identity.add(self.upsample)
-        self.process_identity.add(SpectralNormalization(Conv2D(filters=self.output_channels, kernel_size=(1, 1),
-                                                    padding='same', kernel_initializer=orthogonal(gain=init_gain))))
+        self.process_identity.add(SpectralNormalization(Conv2D(
+            filters=self.output_channels, kernel_size=(1, 1), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain))))
 
-        # apply average-pooling to down-sample to segmentation mask
+        # Apply average-pooling to down-sample to segmentation mask
         self.mask_pool = AveragePooling2D(pool_size=mask_scale, padding='same')
 
-        # computational pipeline
-        self.cbn_1 = ConditionalBatchNormalization(filters=self.input_channels, init_gain=init_gain)
+        # Computational pipeline
+        self.cbn_1 = ConditionalBatchNormalization(filters=self.input_channels,
+                init_gain=init_gain)
         self.relu = ReLU()
-        self.conv_1 = SpectralNormalization(Conv2D(filters=self.output_channels, kernel_size=(3, 3), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain)))
-        self.cbn_2 = ConditionalBatchNormalization(filters=self.output_channels, init_gain=init_gain)
-        self.conv_2 = SpectralNormalization(Conv2D(filters=self.output_channels, kernel_size=(3, 3), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain)))
+        self.conv_1 = SpectralNormalization(Conv2D(
+            filters=self.output_channels, kernel_size=(3, 3), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain)))
+        self.cbn_2 = ConditionalBatchNormalization(filters=self.output_channels,
+                init_gain=init_gain)
+        self.conv_2 = SpectralNormalization(Conv2D(
+            filters=self.output_channels, kernel_size=(3, 3), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain)))
+
 
     def call(self, x, z_k, masks, training):
+        """To call the residiual upsampling block layer
 
-        # process identity
+        Args:
+            z_k (?):
+            masks (?):
+            training (?):
+
+        Returns:
+            x (?):
+        """
+        # Process identity
         identity = self.process_identity(x)
 
-        # pass input through residual pipeline
+        # Pass input through residual pipeline
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
-        # concatenate feature maps and masks
-        masks = tf.cast(self.mask_pool(masks), tf.float32)  # resize masks to fit input shape
+
+        # Concatenate feature maps and masks
+        masks = tf.cast(self.mask_pool(masks), tf.float32)
         x = tf.concat((x, masks), axis=3)
         x = self.upsample(x)
         x = self.conv_1(x, training)
@@ -130,32 +193,50 @@ class ResidualUpsamplingBlock(Layer):
         x = self.relu(x)
         x = self.conv_2(x, training)
 
-        # skip-connection
+        # Skip-connection
         x += identity
 
         return x
 
 
-###############
-# Final Block #
-###############
-
 class OutputBlock(Layer):
+    """Description here"""
     def __init__(self, init_gain, base_channels, output_factor):
+        """Class constructior
+
+        Args:
+            init_gain (?):
+            base_channels (?):
+            output_factor (?):
+        """
         super(OutputBlock, self).__init__()
 
-        # number of output channels
+        # Number of output channels
         self.output_channels = base_channels*output_factor
 
-        self.cbn = ConditionalBatchNormalization(filters=self.output_channels, init_gain=init_gain)
+        self.cbn = ConditionalBatchNormalization(filters=self.output_channels,
+                init_gain=init_gain)
         self.relu = ReLU()
-        self.conv = SpectralNormalization(Conv2D(filters=3, kernel_size=(3, 3), padding='same',
-                                                 kernel_initializer=orthogonal(gain=init_gain)))
+        self.conv = SpectralNormalization(Conv2D(
+            filters=3, kernel_size=(3, 3), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain)))
+
 
     def call(self, x, z_k, masks, training):
+        """To call the residiual upsampling block layer
+
+        Args:
+            z_k (?):
+            masks (?):
+            training (?):
+
+        Returns:
+            x (?):
+        """
         x = self.cbn(x, z_k)
         x = self.relu(x)
-        # concatenate feature maps and masks
+
+        # Concatenate feature maps and masks
         x = tf.concat((x, tf.cast(masks, tf.float32)), axis=3)
         x = self.conv(x, training)
         x = tf.keras.activations.tanh(x)
@@ -163,11 +244,8 @@ class OutputBlock(Layer):
         return x
 
 
-###########################
-# Class Generator Network #
-###########################
-
 class ClassGenerator(Model):
+    """Description here"""
     def __init__(self, init_gain, k, base_channels=32):
         super(ClassGenerator, self).__init__()
 
