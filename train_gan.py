@@ -272,12 +272,9 @@ def train(args: Namespace, datasets: Dict):
                 # Save model weights
                 if (batch_id + 1) % args.checkpoint_iter == 0:
                     for model in models.values():
-                        model.save_weights(
-                                'Weights/{ses}/{mdl}/Epoch_{e}batch_{bid}/'\
-                                        .format(sess=args.session_name,
-                                            mdl=model.model_name,
-                                            e=str(epoch + 1),
-                                            bid=str(batch_id + 1)))
+                        model.save_weights(f'Weights/{args.session_name}/' \
+                                f'{model.model_name}/Epoch_{str(epoch+1)}' \
+                                f'batch_{str(batch_id+1)}')
 
         # Log epoch for tensorboard and print summary
         log_epoch(metrics, tensorboard_writers, epoch, scheme='unsupervised')
