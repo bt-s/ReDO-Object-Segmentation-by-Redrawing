@@ -1,9 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
-"""Script to get the three datasets we are using. The general setup is to have
-four files/folders per each dataset (i) the images (ii) the segmentations
-(iii) the paths file and (iv) the split file. To keep it consistent all the
-datasets keep the same structure and naming scheme which is
+"""get_datasets.py - Script to get the Flowers, Birds and Faces datasets.
+
+The general setup is to have three files/folders per each dataset:
+    (i) the images
+    (ii) the segmentations
+    (iii) the paths file and (iv) the split file.
+
+To keep it consistent all the datasets keep the same structure and naming
+scheme, which is:
+
 Datasets/
 -- DatasetName/
 -- -- images/
@@ -15,12 +21,17 @@ Datasets/
 -- -- paths.txt
 -- -- train_val_test_split.txt
 
-the split file contains two fields per line, the number of the image, and the
+The split file contains two fields per line, the number of the image, and the
 type (train, test, validate) which is defined in datasets.Dataset.SPLIT_KEYS
 In paths.txt there are two fields per line, the number of the image and the
 path assuming the common structure shown above. Though differences may appear in
-each subclass of dataset.Dataset
+each subclass of dataset.Dataset.
+
+For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
 """
+
+__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 from tensorflow.keras.utils import get_file
 from scipy.io import loadmat
@@ -294,3 +305,4 @@ if not download_args.datasets:
 
 for ds_key in download_args.datasets:
     SUPPORTED_DATASETS[ds_key](root_dataset_dir)
+
