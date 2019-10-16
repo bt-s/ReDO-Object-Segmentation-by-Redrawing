@@ -117,6 +117,7 @@ class Discriminator(Model):
         self.block_5 = Dense(units=1,
                 kernel_initializer=orthogonal(gain=init_gain))
 
+
     def call(self, x, training):
         x = self.block_1(x, training)
         x = self.block_2(x, training)
@@ -129,6 +130,7 @@ class Discriminator(Model):
                 self.block_4.pool_size[1]
         x = self.block_5(x)
         return x
+
 
     def set_name(self, name):
         """
