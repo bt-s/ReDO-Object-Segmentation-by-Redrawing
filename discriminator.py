@@ -21,6 +21,7 @@ from typing import Union, Tuple
 
 from network_components import SelfAttentionModule, SpectralNormalization
 from train_utils import UnsupervisedLoss
+import generator
 
 
 class ResidualBlock(Layer):
@@ -54,7 +55,7 @@ class ResidualBlock(Layer):
 
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
-        """Perform of residual block layer call
+        """Perform call of residual block layer call
 
         Args:
             x: Input to the residual block
@@ -121,7 +122,13 @@ class Discriminator(Model):
                 kernel_initializer=orthogonal(gain=init_gain))
 
 
-    def call(self, x, training):
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Call the Discriminator network
+
+        Args:
+            x: Input to the residual block
+            training: Whether we are training
+        """
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)
@@ -132,47 +139,51 @@ class Discriminator(Model):
         x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * \
                 self.block_4.pool_size[1]
         x = self.block_5(x)
+
         return x
 
 
-    def set_name(self, name):
+    def set_name(self, name: str):
+        """Set name of the model.
+            name: Model name
         """
-        Set name of the model.
-        :param name: string containing model name
-        """
-
         self.model_name = name
 
 
 if __name__ == '__main__':
+    # Create generator object
+    generator = generator.Generator(n_classes=2, n_input=32, base_channels=32,
+            init_gain=1.0)
 
-    # create generator object
-    generator = Generator(n_classes=2, n_input=32, base_channels=32, init_gain=1.0)
-
-    # discriminator network
+    # Discriminator network
     discriminator = Discriminator(init_gain=1.0)
 
-    # create optimizer object
+    # Create optimizer object
     optimizer = Adam(learning_rate=1e-1, beta_1=0, beta_2=0.9)
 
-    # create loss function
+    # Create loss function
     loss = UnsupervisedLoss(lambda_z=5.0)
 
-    # load input image and mask
+    # Load input image and mask
     input_path_1 = 'Datasets/Flowers/images/image_00001.jpg'
     label_path_1 = 'Datasets/Flowers/labels/label_00001.jpg'
     image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
-    image_real = tf.image.resize(image_real, (128, 128), preserve_aspect_ratio=False)
-    batch_image_real = tf.expand_dims(tf.image.per_image_standardization(image_real), 0)
+    image_real = tf.image.resize(image_real, (128, 128),
+            preserve_aspect_ratio=False)
+    batch_image_real = tf.expand_dims(tf.image.per_image_standardization(
+        image_real), 0)
     mask = tf.image.decode_jpeg(tf.io.read_file(label_path_1), channels=1)
-    mask = tf.expand_dims(tf.image.resize(mask, (128, 128), preserve_aspect_ratio=False), 0)
+    mask = tf.expand_dims(tf.image.resize(mask, (128, 128),
+        preserve_aspect_ratio=False), 0)
     background_color = 29
-    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * background_color, mask >= 1.1 * background_color)
-                                           , 10, -10), tf.float32)[:, :, :, 0], 3)
+    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * \
+            background_color, mask >= 1.1 * background_color), 10, -10),
+            tf.float32)[:, :, :, 0], 3)
     masks = tf.concat((mask, -1*mask), axis=3)
 
     with tf.GradientTape() as tape:
-        batch_image_fake = generator(batch_image_real, masks, update_generator=False, training=True)
+        batch_image_fake = generator(batch_image_real, masks,
+                update_generator=False, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         d_logits_real = discriminator(batch_image_real, training=True)
 
@@ -182,6 +193,6 @@ if __name__ == '__main__':
         print('D_F: ', d_loss_f)
 
     gradients = tape.gradient(d_loss, discriminator.trainable_variables)
-    # update weights
+    # Update weights
     optimizer.apply_gradients(zip(gradients, discriminator.trainable_variables))
 
