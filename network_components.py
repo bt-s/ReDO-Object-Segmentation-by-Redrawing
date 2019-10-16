@@ -1,3 +1,15 @@
+#!/usr/bin/python3
+
+"""network_components.py - Implementation of the components of the various
+                           networks
+
+For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
+"""
+
+__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+
+
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
