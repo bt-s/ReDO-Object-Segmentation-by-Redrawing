@@ -11,89 +11,116 @@ __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
+from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
+        Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
+from typing import Tuple
 
-
-################################
-# Spectral Normalization Layer #
-################################
 
 class SpectralNormalization(Layer):
-    def __init__(self, layer, n_power_iterations=1):
-        """
-        Spectral Normalization Layer to wrap around a Conv2D Layer. Kernel Weights are normalized before each forward
-        pass.
-        :param layer: Conv2D object
-        :param n_power_iterations: number of power iterations | default: 1
+    """Spectral normalization layer to wrap around a Conv2D Layer. Kernel
+    weights are normalized before each forward pass."""
+    def __init__(self, layer: Conv2D, n_power_iterations: int=1):
+        """Class constructor
+
+        Attributes:
+            layer: Conv2D object
+            n_power_iterations: Number of power iterations
         """
         super(SpectralNormalization, self).__init__()
+
         self.layer = layer
-        self.init = False  # Conv2D layer's weights haven't been initialized yet
         self.n_power_iterations = n_power_iterations
-        self.u = None  # u cannot be initialized here, since kernel shape is not known yet
 
-    def normalize_weights(self, training=True):
-        """
-        Normalize the Conv2D layer's weights w.r.t. their spectral norm.
-        :param training: True if model in training phase. Updates estimate of u at every iteration.
-        """
+        # Conv2D layer's weights haven't been initialized yet
+        self.init = False
 
-        filters = self.layer.weights[0].shape.as_list()[-1]  # number of filter kernels in Conv2D layer
+        # u and weights_sn cannot be initialized yet, since the kernel shape is
+        # not known yet
+        self.u = None
+        self.weights_sn = None
 
-        # reshape kernel weights
+
+    def normalize_weights(self, training: bool):
+        """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
+        # Number of filter kernels in Conv2D layer
+        filters = self.layer.weights[0].shape.as_list()[-1]
+
+        # Reshape kernel weights
         W = tf.reshape(self.layer.weights[0], [filters, -1])
 
-        # compute spectral norm and singular value approximation
-        spectral_norm, u = self.power_iteration(W)
+        # Compute the singular value approximations
+        u, v = self.power_iteration(W)
 
-        #print('SN: ', spectral_norm)
+        # Compute spectral norm
+        spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
-        # normalize kernel weights
-        self.layer.weights[0].assign(self.layer.weights[0] / spectral_norm)
+        # Normalize kernel weights
+        self.weights_sn = self.layer.weights[0] / spectral_norm
 
-        # update estimate of singular vector during training
         if training:
+            # Update estimate of singular vector during training
             self.u = u
 
-    def power_iteration(self, W, n_iter=1):
-        """
-        Compute approximate spectral norm. According to paper n_iter = 1 is sufficient due to updated u.
-        :param W: Reshaped kernel weights | shape: [filters, N]
-        :param n_iter: number of power iterations
-        :return: approximate spectral norm and updated singular vector approximation.
+
+    def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
+        """Compute approximate spectral norm.
+
+        Note: According to the paper n_power_iterations= 1 is sufficient due
+              to updated u.
+
+        Args:
+            W: Reshaped kernel weights | shape: [filters, N]
+
+        Returns:
+            Approximate spectral norm and updated singular vector
+            approximation.
         """
         if self.u is None:
-            self.u = tf.Variable(tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1]), trainable=False)
+            self.u = tf.Variable(tf.random.normal(
+                [self.layer.weights[0].shape.as_list()[-1], 1]),
+                trainable=False)
 
-        for _ in range(n_iter):
+        for _ in range(self.n_power_iterations):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
             u = self.normalize_l2(tf.matmul(W, v))
-            spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
-        return spectral_norm, u
+        return u, v
+
 
     @staticmethod
-    def normalize_l2(v, epsilon=1e-12):
+    def normalize_l2(v: tf.Tensor, epsilon: float=1e-12) -> tf.Tensor:
+        """Normalize input matrix w.r.t. its euclidean norm
+
+        Args:
+            v: Input matrix
+            epsilon: Small epsilon to avoid division by zero
+
+        Returns:
+            l2-normalized input matrix
         """
-        Normalize input matrix w.r.t. its euclidean norm
-        :param v: input matrix of arbitrary shape
-        :param epsilon: small epsilon to avoid division by zero
-        :return: l2-normalized input matrix
+
+        return v / (tf.math.reduce_sum(v**2)**0.5 + epsilon)
+
+
+    def call(self, x: tf. Tensor, training: bool) -> tf.Tensor:
+        """Perform forward pass of Conv2D layer on first iteration to initialize
+        the weights
+
+        Args:
+            x:
+            training:
         """
-
-        return v / (tf.math.reduce_sum(v ** 2) ** 0.5 + epsilon)
-
-    def call(self, x, training):
-
-        # perform forward pass of Conv2D layer on first iteration to initialize weights
         if not self.init:
             _ = self.layer(x)
             self.init = True
 
-        # normalize weights before performing standard forward pass of Conv2D layer
+        # Normalize weights before performing the standard forward pass of
+        # Conv2D layer
         self.normalize_weights(training=training)
+
         output = self.layer(x)
+
         return output
 
 
