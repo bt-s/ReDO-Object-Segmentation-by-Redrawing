@@ -57,16 +57,19 @@ class ResidualBlock(Layer):
         """Perform of residual block layer call
 
         Args:
-            x:
-            training:
+            x: Input to the residual block
+            training: Whether we are training
         """
         # Save identity
-        identity = self.process_identity(x, training)
+        identity = x
 
         # Pass input through pipeline
         x = self.conv_1(x, training)
         x = self.relu(x)
         x = self.conv_2(x, training)
+
+        if x.shape != identity.shape:
+            identity = self.process_identity(identity, training)
 
         # Skip-connection
         x += identity
