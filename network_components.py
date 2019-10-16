@@ -124,7 +124,6 @@ class SpectralNormalization(Layer):
         return output
 
 
-# TODO: fix docstring and type-hinting + check for correctness
 class SelfAttentionModule(Layer):
     """Self-attention component for GANs"""
     def __init__(self, init_gain: float, output_channels: int,
@@ -158,49 +157,43 @@ class SelfAttentionModule(Layer):
             kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
 
 
-    # TODO: fix docstring and type-hinting + check for correctness
-    @staticmethod
-    def compute_attention(Q, K, V):
-        """Compute attention maps from queries, keys and values
+    def compute_attention(self, x: tf.Tensor, train: bool) -> tf.Tensor:
+        """Compute attention maps
 
         Args:
-            Q: Queries
-            K: Keys
-            V: Values
+            x: Input to the residual block
+            training: Whether we are training
 
         Returns:
             Attention map with same shape as input feature maps
         """
-        dot_product = tf.matmul(Q, K, transpose_b=True)
-        weights = Softmax(axis=2)(dot_product)
-        x = tf.matmul(weights, V)
+        # Height, width, channel
+        h, w, c = x.shape.as_list()[1:]
 
-        return x
+        fx = tf.reshape(self.f(x, train), [-1, h * w, self.key_size])
+        gx = tf.reshape(self.g(x, train), [-1, h * w, self.key_size])
+        s = tf.matmul(fx, gx, transpose_b=True)
+
+        beta = Softmax(axis=2)(s)
+
+        hx = tf.reshape(self.h(x, train), [-1, h * w, c])
+
+        interim = tf.matmul(beta, hx)
+        interim = tf.reshape(interim, [-1, h, w, c])
+        o = self.out(interim, train)
+
+        return o
 
 
-    # TODO: fix docstring and type-hinting + check for correctness
-    def call(self, x, training):
-        """
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Perform call of attention layer
 
         Args:
-
-        Returns:
+            x: Input to the residual block
+            training: Whether we are training
         """
-        # Height, width, channel
-        H, W, C = x.shape.as_list()[1:]
+        o = self.compute_attention(x, training)
+        y = self.gamma * o + x
 
-        # Compute query, key and value matrices
-        Q = tf.reshape(self.f(x, training), [-1, H * W, self.key_size])
-        K = tf.reshape(self.g(x, training), [-1, H * W, self.key_size])
-        V = tf.reshape(self.h(x, training), [-1, H * W, C])
-
-        # Compute attention maps
-        o = self.compute_attention(Q, K, V)
-        o = tf.reshape(o, [-1, H, W, C])
-        o = self.out(o, training)
-
-        # Add weighted attention maps to input feature maps
-        output = self.gamma * o + x
-
-        return output
+        return y
 
