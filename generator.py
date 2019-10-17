@@ -2,21 +2,22 @@
 
 """generator.py - <explanation-here>.
 
-For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
 __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, UpSampling2D, AveragePooling2D, Softmax
-import matplotlib.pyplot as plt
-import numpy as np
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.initializers import orthogonal
+from typing import Union, List, Tuple
 
 from network_components import SelfAttentionModule, SpectralNormalization
 from discriminator import Discriminator
@@ -25,15 +26,14 @@ from train_utils import UnsupervisedLoss
 
 
 class ConditionalBatchNormalization(Layer):
-    """Conditional Batch Normalization Layer.
-    Use Conv2D layers to learn a function for gamma and beta instead of directly
-    learning the shift and scale parameters of the BN layer."""
-    def __init__(self, filters, init_gain):
+    """Use Conv2D layers to learn a function for gamma and beta instead of
+    directly learning the shift and scale parameters of the BN layer."""
+    def __init__(self, filters: int, init_gain: float):
         """Class constructior
 
-        Args:
-            filters (?):
-            init_gain (?):
+        Attributes:
+            filters: Number of filters in the convolutional layer
+            init_gain: Initializer gain for orthogonal initialization
         """
         super(ConditionalBatchNormalization, self).__init__()
 
@@ -48,15 +48,15 @@ class ConditionalBatchNormalization(Layer):
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
 
 
-    def call(self, x, z_k):
+    def call(self, x: tf.Tensor, z_k: tf.Tensor) -> tf.Tensor:
         """To call the CBN layer
 
         Args:
-            x (?):
-            z_k (?):
+            x: Input tensor
+            z_k: Noise vector for class k
 
         Returns:
-            x (?):
+            x: Output tensor of conditional batch normalization layer
         """
         # Pass input through Instance Normalization layer
         x = self.in_1(x)
@@ -74,15 +74,15 @@ class ConditionalBatchNormalization(Layer):
 class InputBlock(Layer):
     """First computational block of the generator network. Includes a
     fully-connected layer whose output is then reshaped to be able to start
-    applying convolutional layers. CBN and ReLU are also included.
-    """
-    def __init__(self, init_gain, base_channels, output_factor):
+    applying convolutional layers. CBN and ReLU are also included."""
+    def __init__(self, init_gain: float, base_channels: int,
+            output_factor: int):
         """Class constructior
 
-        Args:
-            init_gain (?):
-            base_channels (?):
-            output_factor (?):
+        Attributes:
+            init_gain: Initializer gain for orthogonal initialization
+            base_channels: The number of base channels
+            output_factor: Factor to reshape the output
         """
         super(InputBlock, self).__init__()
 
@@ -98,16 +98,15 @@ class InputBlock(Layer):
         self.relu = ReLU()
 
 
-    def call(self, z_k):
-        """To call the input block layer
+    def call(self, z_k: tf.Tensor) -> tf.Tensor:
+        """To call the first input block of the generator network
 
         Args:
-            z_k (?):
+            z_k: Noise vector for class k
 
         Returns:
-            x (?):
+            x: Output tensor
         """
-
         # Reshape output of fully-connected layer
         x = self.dense(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
@@ -120,17 +119,18 @@ class InputBlock(Layer):
 
 
 class ResidualUpsamplingBlock(Layer):
-    """Description here"""
-    def __init__(self, init_gain, base_channels, input_factor, output_factor,
-            mask_scale):
+    def __init__(self, init_gain: float, base_channels: int, input_factor: int,
+            output_factor: int, mask_scale: int):
         """Class constructior
 
         Args:
-            init_gain (?):
-            base_channels (?):
-            input_factor (?):
-            output_factor (?):
-            mask_scale (?):
+            init_gain: Initializer gain for orthogonal initialization
+            base_channels: The number of base channels
+            input_factor: Factor to reshape the input
+            output_channels: Factor by which to multiply base_channels to get
+                             final number of feature maps
+            mask_scale: Down-scaling factor of segmentation mask to be
+                        concatenated to the feature maps
         """
         super(ResidualUpsamplingBlock, self).__init__()
 
@@ -166,16 +166,18 @@ class ResidualUpsamplingBlock(Layer):
             kernel_initializer=orthogonal(gain=init_gain)))
 
 
-    def call(self, x, z_k, masks, training):
-        """To call the residiual upsampling block layer
+    def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
+            training: bool) -> tf.Tensor:
+        """To call the residual upsampling block
 
         Args:
-            z_k (?):
-            masks (?):
-            training (?):
+            x: Input tensor
+            z_k: Noise vector for class k
+            masks: The masks
+            training: Whether we are training
 
         Returns:
-            x (?):
+            x: Output tensor
         """
         # Process identity
         identity = self.process_identity(x)
@@ -200,14 +202,14 @@ class ResidualUpsamplingBlock(Layer):
 
 
 class OutputBlock(Layer):
-    """Description here"""
-    def __init__(self, init_gain, base_channels, output_factor):
+    def __init__(self, init_gain: float, base_channels: int,
+            output_factor: int):
         """Class constructior
 
         Args:
-            init_gain (?):
-            base_channels (?):
-            output_factor (?):
+            init_gain: Initializer gain for orthogonal initialization
+            base_channels: The number of base channels
+            output_factor: Factor to reshape the input
         """
         super(OutputBlock, self).__init__()
 
@@ -222,16 +224,18 @@ class OutputBlock(Layer):
             kernel_initializer=orthogonal(gain=init_gain)))
 
 
-    def call(self, x, z_k, masks, training):
-        """To call the residiual upsampling block layer
+    def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
+            training: bool) -> tf.Tensor:
+        """To call the residual upsampling block
 
         Args:
-            z_k (?):
-            masks (?):
-            training (?):
+            x: Input tensor
+            z_k: Noise vector for class k
+            masks: The masks
+            training: Whether we are training
 
         Returns:
-            x (?):
+            x: Output tensor
         """
         x = self.cbn(x, z_k)
         x = self.relu(x)
@@ -246,150 +250,200 @@ class OutputBlock(Layer):
 
 class ClassGenerator(Model):
     """Description here"""
-    def __init__(self, init_gain, k, base_channels=32):
+    def __init__(self, init_gain: float, k: int, base_channels=32):
+        """Class constructor
+
+        Attributes:
+            init_gain: Initializer gain for orthogonal initialization
+            k: Region for which the generator is trained
+            base_channels: Data-dependent constant used for number of channels
+                           throughout the network
+        """
         super(ClassGenerator, self).__init__()
 
-        self.k = k  # region for which the generator is trained
-        self.base_channels = base_channels  # data-dependent constant used for number of channels throughout the network
+        self.k = k
+        self.base_channels = base_channels
 
-        # first computational block | fully-connected layer + reshaping of noise vector to allow for convolutions
-        self.block_1 = InputBlock(init_gain=init_gain, base_channels=self.base_channels, output_factor=16)
+        # Fully-connected layer + reshaping of noise vector to allow for
+        # convolutions
+        self.block_1 = InputBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=16)
 
-        # second computational block | residual up-sampling layers
-        # mask_scale: down-scaling factor of segmentation mask to be concatenated to the feature maps
-        # output_channels: factor by which to multiply base_channels to get final number of feature maps
-        self.up_res_block_1 = ResidualUpsamplingBlock(init_gain=init_gain, base_channels=self.base_channels,
-                                                      output_factor=16, input_factor=16, mask_scale=32)
-        self.up_res_block_2 = ResidualUpsamplingBlock(init_gain=init_gain, base_channels=self.base_channels,
-                                                      output_factor=8, input_factor=16, mask_scale=16)
-        self.up_res_block_3 = ResidualUpsamplingBlock(init_gain=init_gain, base_channels=self.base_channels,
-                                                      output_factor=4, input_factor=8, mask_scale=8)
-        self.up_res_block_4 = ResidualUpsamplingBlock(init_gain=init_gain, base_channels=self.base_channels,
-                                                      output_factor=2, input_factor=4, mask_scale=4)
+        self.up_res_block_1 = ResidualUpsamplingBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=16,
+                input_factor=16, mask_scale=32)
+        self.up_res_block_2 = ResidualUpsamplingBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=8,
+                input_factor=16, mask_scale=16)
+        self.up_res_block_3 = ResidualUpsamplingBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=4,
+                input_factor=8, mask_scale=8)
+        self.up_res_block_4 = ResidualUpsamplingBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=2,
+                input_factor=4, mask_scale=4)
 
-        # computational block 3 | self-attention module
-        self.block_3 = SelfAttentionModule(init_gain=init_gain, output_channels=2*base_channels)
+        # Self-attention module
+        self.block_3 = SelfAttentionModule(init_gain=init_gain,
+                output_channels=2*base_channels)
 
-        # computational block 4 | final residual up-sampling block
-        self.block_4 = ResidualUpsamplingBlock(init_gain=init_gain, base_channels=self.base_channels,
-                                                      output_factor=1, input_factor=2, mask_scale=2)
-        # computational block 5 | output block
-        self.block_5 = OutputBlock(init_gain=init_gain, base_channels=self.base_channels, output_factor=1)
+        # Final residual up-sampling block
+        self.block_4 = ResidualUpsamplingBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=1,
+                input_factor=2, mask_scale=2)
 
-    def call(self, batch_images_real, batch_masks, n_input, training):
+        # Output block
+        self.block_5 = OutputBlock(init_gain=init_gain,
+                base_channels=self.base_channels, output_factor=1)
+
+
+    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
+            n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
+                    tf.Tensor]:
+        """Forward pass of the generator network - create a batch of fake images
+
+        Args:
+            batch_images_real: Batch of images taken from the dataset
+            batch_masks: Extracted segmentation masks of shape:
+                         [batch_size, height, width, n_classes-1]
+            n_input: Dimensionality of the noise vector
+            training: Whether we are training
+
+        Returns:
+            batch_images_fake: Generated fake images
+            batch_region_k_fake: Generated fake regions
+            z_k: Generated noise vector
         """
-        Forward pass of the generator network. Create a batch of fake images.
-        :param batch_images_real: batch of images taken from the dataset
-        :param batch_masks: extracted segmentation masks | shape: [batch_size, height, width, n_classes-1]
-        :param n_input: dimensionality of the noise vector
-        :param training: current network phase to switch between modes for CBN layers
-        :return: batch of fake images | shape: [batch_size, height, width, 3]
-        """
 
-        # batch size
+        # Batch size
         batch_size = batch_masks.shape[0]
 
-        # number of different regions
+        # Number of different regions
         n_regions = batch_masks.shape[3]
 
-        # sample noise vector
+        # Sample noise vector
         z_k = tf.random.normal([batch_size, 1, 1, n_input])
 
-        # get masks for region k
+        # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
 
-        # re-draw image
+        # Re-draw image
         batch_images_fake = tf.zeros(batch_images_real.shape)
-        for k in range(n_regions):
 
+        for k in range(n_regions):
             # re-draw sampled region
             if k == self.k:
                 x = self.block_1(z_k)
-                x = self.up_res_block_1(x, z_k, batch_masks_k, training=training)
-                x = self.up_res_block_2(x, z_k, batch_masks_k, training=training)
-                x = self.up_res_block_3(x, z_k, batch_masks_k, training=training)
-                x = self.up_res_block_4(x, z_k, batch_masks_k, training=training)
+                x = self.up_res_block_1(x, z_k, batch_masks_k,
+                        training=training)
+                x = self.up_res_block_2(x, z_k, batch_masks_k,
+                        training=training)
+                x = self.up_res_block_3(x, z_k, batch_masks_k,
+                        training=training)
+                x = self.up_res_block_4(x, z_k, batch_masks_k,
+                        training=training)
                 x = self.block_3(x, training=training)
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
-                batch_region_k_fake = self.block_5(x, z_k, batch_masks_k, training=training)
+                batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
+                        training=training)
                 batch_region_k_fake = batch_region_k_fake * batch_masks_k
 
-                # add redrawn regions to batch of fake images
+                # Add redrawn regions to batch of fake images
                 batch_images_fake += batch_region_k_fake
 
-            # re-use input image for other regions
+            # Re-use input image for other regions
             else:
                 if n_regions == 2:
                     batch_masks_inv = 1.0 - batch_masks_k
                 else:
-                    batch_masks_inv = tf.expand_dims(batch_masks[:, :, :, k], axis=3)
+                    batch_masks_inv = tf.expand_dims(batch_masks[:, :, :, k],
+                            axis=3)
 
                 batch_images_fake += batch_images_real * batch_masks_inv
 
         return batch_images_fake, batch_region_k_fake, z_k[:, 0, 0, :]
 
 
-#####################
-# Generator Network #
-#####################
-
 class Generator(Model):
-    def __init__(self, n_classes, n_input, init_gain, base_channels):
-        """
-        Generator object that contains a separate network for each region.
-        :param n_classes: number of regions to be generated. Corresponds to number of classes in dataset.
-        :param n_input: dimensionality of the sampled input vector z_k
-        :param init_gain: gain for orthogonal initialization of network weights
-        :param base_channels: dataset-dependent constant for number of channels
+    """Generator object containing a separate network for each region/class"""
+    def __init__(self, n_classes: int, n_input: Tuple, init_gain: float,
+            base_channels: int):
+        """Class constructor
+
+        Attributes:
+            n_classes: Number of regions to be generated, corresponding to the
+                       number of classes in dataset.
+            n_input: Dimensionality of the sampled input vector z_k
+            init_gain: Gain for orthogonal initialization of network weights
+            base_channels: Dataset-dependent constant for number of channels
         """
         super(Generator, self).__init__()
 
-        # set name for model saving
+        # Set name for model saving
         self.model_name = 'Generator'
 
-        # number of classes modeled by generator
+        # Number of classes modeled by generator
         self.n_classes = n_classes
 
-        # dimensionality of sampled noise vector
+        # Dimensionality of sampled noise vector
         self.n_input = n_input
 
-        # list of class generator networks
-        self.class_generators = [ClassGenerator(init_gain=init_gain, k=k, base_channels=base_channels)
-                                  for k in range(self.n_classes)]
+        # List of class generator networks
+        self.class_generators = [ClassGenerator(init_gain=init_gain, k=k,
+            base_channels=base_channels) for k in range(self.n_classes)]
 
-    def call(self, batch_images_real, batch_masks, update_generator, training):
-        """
-        Generate fake images by separately redrawing each class using the segmentation masks for each image in the batch
-        :param batch_images_real: batch of training images | shape: [batch_size, 128, 128, 3]
-        :param batch_masks: predictions of segmentation network | shape: [batch_size, 128, 128, n_classes]
-        :param update_generator: True if function called during generator update. Returns noise vector and estimated
-        noise vector along with batch of fake images.
-        :param training: True if function called during training.
-        :return: batch of fake images redrawn for each class | shape: [batch_size*n_classes, 128, 128, 3]
-        """
 
-        batch_images_fake = None
-        batch_z_k = None
-        batch_regions_fake = None
+    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
+            update_generator: bool, training: bool) -> Union[List[tf.Tensor,
+                tf.Tensor, tf.Tensor], tf.Tensor]:
+        """Generate fake images by separately redrawing each class using the
+        segmentation masks for each image in the batch
+
+        Args:
+            batch_images_real: Batch of training images of shape:
+                               [batch_size, 128, 128, 3]
+            batch_masks: Predictions of segmentation network of shape:
+                         [batch_size, 128, 128, n_classes]
+            update_generator: Whether the function is called during generator
+                              update.
+            training: Whether we are training
+
+        Returns:
+            noise vector and estimated and noise vector along with batch of
+            fake images.
+
+        Returns:
+            if update_generator:
+                batch_images_fake: Batch of fake images redrawn for each class
+                                   of shape: [batch_size*n_classes, 128, 128, 3]
+                batch_regions_fake: Batch of fake regions
+                batch_z_k: Batch of
+            else:
+                batch_images_fake: Batch of fake images redrawn for each class
+                                   of shape: [batch_size*n_classes, 128, 128, 3]
+        """
+        batch_images_fake, batch_z_k, batch_regions_fake = None, None, None
 
         for k in range(self.n_classes):
-
-            # get batch of fake images for respective region
-            batch_images_k_fake, batch_region_k_fake, z_k = self.class_generators[k](batch_images_real, batch_masks,
-                                                                n_input=self.n_input, training=training)
+            # Get batch of fake images for respective region
+            batch_images_k_fake, batch_region_k_fake, z_k = \
+                    self.class_generators[k](batch_images_real, batch_masks,
+                            n_input=self.n_input, training=training)
 
             if batch_images_fake is None:
                 batch_images_fake = batch_images_k_fake
                 batch_regions_fake = batch_region_k_fake
+
                 if update_generator:
                     batch_z_k = z_k
             else:
-                batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=0)
+                batch_images_fake = tf.concat((batch_images_fake,
+                    batch_images_k_fake), axis=0)
+
                 if update_generator:
                     batch_z_k = tf.concat((batch_z_k, z_k), axis=0)
                     batch_regions_fake += batch_region_k_fake
 
-        # return batch of fake images
+        # Return batch of fake images
         if update_generator:
             return batch_images_fake, batch_regions_fake, batch_z_k
         else:
@@ -397,63 +451,72 @@ class Generator(Model):
 
 
 if __name__ == '__main__':
+    # Create generator object
+    generator = Generator(n_classes=2, n_input=32, base_channels=32,
+            init_gain=1.0)
 
-    # create generator object
-    generator = Generator(n_classes=2, n_input=32, base_channels=32, init_gain=1.0)
-
-    # discriminator network
+    # Discriminator network
     discriminator = Discriminator(init_gain=1.0)
 
-    # information network
-    information_network = InformationConservationNetwork(init_gain=1.0, n_classes=2, n_output=32)
+    # Information network
+    information_network = InformationConservationNetwork(init_gain=1.0,
+            n_classes=2, n_output=32)
 
-    # create optimizer object
+    # Create optimizer object
     optimizer = Adam(learning_rate=1e-1, beta_1=0, beta_2=0.9)
 
-    # create loss function
+    # Create loss function
     loss = UnsupervisedLoss(lambda_z=5.0)
 
-    # load input image and mask
+    # Load input image and mask
     input_path_1 = 'Datasets/Flowers/images/image_00001.jpg'
     label_path_1 = 'Datasets/Flowers/labels/label_00001.jpg'
     image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
-    image_real = tf.image.resize(image_real, (128, 128), preserve_aspect_ratio=False)
-    image_real = tf.expand_dims(tf.image.per_image_standardization(image_real), 0)
+    image_real = tf.image.resize(image_real, (128, 128),
+            preserve_aspect_ratio=False)
+    image_real = tf.expand_dims(tf.image.per_image_standardization(image_real),
+            0)
     mask = tf.image.decode_jpeg(tf.io.read_file(label_path_1), channels=1)
-    mask = tf.expand_dims(tf.image.resize(mask, (128, 128), preserve_aspect_ratio=False), 0)
+    mask = tf.expand_dims(tf.image.resize(mask, (128, 128),
+        preserve_aspect_ratio=False), 0)
     background_color = 29
-    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * background_color, mask >= 1.1 * background_color)
-                                           , 10, -10), tf.float32)[:, :, :, 0], 3)
+    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * \
+            background_color, mask >= 1.1 * background_color), 10, -10),
+            tf.float32)[:, :, :, 0], 3)
     masks = tf.concat((mask, -1*mask), axis=3)
     masks = tf.math.sigmoid(masks)
 
     with tf.GradientTape() as tape:
-        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks, update_generator=True, training=True)
+        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks,
+                update_generator=True, training=True)
         z_k_hat = information_network(batch_regions_fake, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k_hat)
         g_loss = g_loss_d + g_loss_i
-        print('G_D: ', g_loss_d)
-        print('G_I: ', g_loss_i)
+        print(f'Generator loss (discriminator): {g_loss_d}')
+        print(f'Generator loss (information): {g_loss_i}')
 
     gradients = tape.gradient(g_loss, generator.trainable_variables)
-    # update weights
+
+    # Update weights
     optimizer.apply_gradients(zip(gradients, generator.trainable_variables))
 
-    # input image
+    # Input image
     image_real = image_real[0].numpy()
     image_real -= np.min(image_real)
     image_real /= (np.max(image_real) - np.min(image_real))
-    # fake image with redrawn foreground
+
+    # Fake image with redrawn foreground
     image_fake_fg = batch_image_fake[0].numpy()
     image_fake_fg -= np.min(image_fake_fg)
     image_fake_fg /= (np.max(image_fake_fg) - np.min(image_fake_fg))
-    # fake image with redrawn background
+
+    # Fake image with redrawn background
     image_fake_bg = batch_image_fake[1].numpy()
     image_fake_bg -= np.min(image_fake_bg)
     image_fake_bg /= (np.max(image_fake_bg) - np.min(image_fake_bg))
 
-    # plot output
+    # Plot output
     fig, ax = plt.subplots(2, 2)
     ax[0, 0].set_title('Input Image')
     ax[0, 0].imshow(image_real)
@@ -464,3 +527,4 @@ if __name__ == '__main__':
     ax[1, 1].set_title('Fake Background')
     ax[1, 1].imshow(image_fake_bg)
     plt.show()
+
