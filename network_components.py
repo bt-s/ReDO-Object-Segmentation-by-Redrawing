@@ -3,7 +3,7 @@
 """network_components.py - Implementation of the components of the various
                            networks
 
-For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
