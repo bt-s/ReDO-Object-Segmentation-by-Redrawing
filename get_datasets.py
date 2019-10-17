@@ -5,7 +5,8 @@
 The general setup is to have three files/folders per each dataset:
     (i) the images
     (ii) the segmentations
-    (iii) the paths file and (iv) the split file.
+    (iii) the paths file
+    (iv) the split file.
 
 To keep it consistent all the datasets keep the same structure and naming
 scheme, which is:
