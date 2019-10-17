@@ -5,7 +5,8 @@
 The general setup is to have three files/folders per each dataset:
     (i) the images
     (ii) the segmentations
-    (iii) the paths file and (iv) the split file.
+    (iii) the paths file
+    (iv) the split file.
 
 To keep it consistent all the datasets keep the same structure and naming
 scheme, which is:
@@ -27,7 +28,7 @@ In paths.txt there are two fields per line, the number of the image and the
 path assuming the common structure shown above. Though differences may appear in
 each subclass of dataset.Dataset.
 
-For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
