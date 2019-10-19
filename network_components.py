@@ -30,21 +30,21 @@ class SpectralNormalization(Layer):
 
         filters = self.layer.weights[0].shape.as_list()[-1]  # number of filter kernels in Conv2D layer
 
-        print('W_orig: ', self.layer.weights[0][0, :, :, 0])
+        # print('W_orig: ', self.layer.weights[0][0, :, :, 0])
 
         # reshape kernel weights
         W = tf.reshape(self.layer.weights[0], [filters, -1])
 
         # compute spectral norm and singular value approximation
         spectral_norm, u = self.power_iteration(W)
-        print('Sigma: ', spectral_norm)
+        # print('Sigma: ', spectral_norm)
 
         # save copy of original weights
         W_orig = tf.identity(self.layer.weights[0])
 
         # normalize kernel weights
         self.layer.weights[0].assign(self.layer.weights[0] / spectral_norm)
-        print('W_sn: ', self.layer.weights[0][0, :, :, 0])
+        # print('W_sn: ', self.layer.weights[0][0, :, :, 0])
 
         # update estimate of singular vector during training
         if training:
@@ -60,7 +60,11 @@ class SpectralNormalization(Layer):
         :return: approximate spectral norm and updated singular vector approximation.
         """
         if self.u is None:
-            self.u = tf.Variable(tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1]), trainable=False)
+            # self.u = tf.Variable(tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1]), trainable=False)
+            self.u = tf.Variable(
+                tf.ones([self.layer.weights[0].shape.as_list()[-1], 1]),
+                trainable=False
+            )
 
         for _ in range(n_iter):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
