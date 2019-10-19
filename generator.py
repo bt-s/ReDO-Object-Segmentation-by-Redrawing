@@ -139,12 +139,12 @@ class ResidualUpsamplingBlock(Layer):
         self.input_channels = base_channels*input_factor
 
         # Up-sampling layer
+        # TODO: why bilinear instead of nearest interpolation?
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
         # Perform 1x1 convolutions on the identity to adjust the number of
         # channels to the output of the computational
         self.process_identity = Sequential()
-        self.process_identity.add(self.upsample)
         self.process_identity.add(SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(1, 1), padding='same',
             kernel_initializer=orthogonal(gain=init_gain))))
@@ -153,7 +153,7 @@ class ResidualUpsamplingBlock(Layer):
         self.mask_pool = AveragePooling2D(pool_size=mask_scale, padding='same')
 
         # Computational pipeline
-        self.cbn_1 = ConditionalBatchNormalization(filters=self.input_channels,
+        self.cbn_1 = ConditionalBatchNormalization(filters=self.output_channels,
                 init_gain=init_gain)
         self.relu = ReLU()
         self.conv_1 = SpectralNormalization(Conv2D(
@@ -182,21 +182,28 @@ class ResidualUpsamplingBlock(Layer):
         # Process identity
         identity = self.process_identity(x)
 
-        # Pass input through residual pipeline
+        # Downsample the mask
+        masks = tf.cast(self.mask_pool(masks), tf.float32)
+
+        # Res block computations
+        x = self.conv_1(x, training)
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
 
         # Concatenate feature maps and masks
-        masks = tf.cast(self.mask_pool(masks), tf.float32)
         x = tf.concat((x, masks), axis=3)
-        x = self.upsample(x)
-        x = self.conv_1(x, training)
-        x = self.cbn_2(x, z_k)
-        x = self.relu(x)
+
         x = self.conv_2(x, training)
+        x = self.cbn_2(x, z_k)
 
         # Skip-connection
         x += identity
+
+        # Apply ReLU activation
+        x = self.relu(x)
+
+        # Upsample
+        x = self.upsample(x)
 
         return x
 
@@ -393,8 +400,8 @@ class Generator(Model):
 
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
-            update_generator: bool, training: bool) -> Union[List[tf.Tensor,
-                tf.Tensor, tf.Tensor], tf.Tensor]:
+            update_generator: bool, training: bool) -> Union[List[tf.Tensor],
+                tf.Tensor]:
         """Generate fake images by separately redrawing each class using the
         segmentation masks for each image in the batch
 
