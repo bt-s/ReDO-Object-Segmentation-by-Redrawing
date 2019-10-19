@@ -3,19 +3,18 @@
 """segmentation_network.py - Implementation of the segmentation network and its
                              components
 
-For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
 __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Conv2D, LayerNormalization, ReLU, \
-        UpSampling2D, Softmax, AveragePooling2D
+        UpSampling2D, Softmax, AveragePooling2D, ReLU
 import matplotlib.pyplot as plt
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
@@ -63,7 +62,7 @@ class ConvolutionalBlock(Model):
 
 class PPM(Model):
     """Pyramid Pooling Module - extracts features at four different scales and
-    fuse them together."""
+    fuses them together."""
     def __init__(self, input_shape: Tuple[int, int, int], init_gain: float,
             weight_decay: float):
         """Class constructor
@@ -80,10 +79,6 @@ class PPM(Model):
                     "(W, H, C).")
 
         n_input_channels = input_shape[2]
-
-        # Number of scales at which features are extracted and then concatenated
-        # with the original feature maps
-        n_scales = 4
 
         # Scale 1 (1x1 Output)
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
@@ -104,6 +99,7 @@ class PPM(Model):
                 interpolation='bilinear')
 
         # Scale 3 (4x4 Output)
+        # TODO: Maybe change this to // 3
         pool_size_3 = (input_shape[0] // 4, input_shape[1] // 4)
         self.avg_pool_3 = AveragePooling2D(pool_size_3)
         self.conv_3 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
@@ -113,6 +109,8 @@ class PPM(Model):
                 interpolation='bilinear')
 
         # Scale 4 (8x8 Output)
+        # TODO: Maybe change this to // 6
+        # Note: The upsampling issue should be fixed
         pool_size_4 = (input_shape[0] // 8, input_shape[1] // 8)
         self.avg_pool_4 = AveragePooling2D(pool_size_4)
         self.conv_4 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
@@ -135,21 +133,25 @@ class PPM(Model):
         # Scale 1
         x_1 = self.avg_pool_1(x)
         x_1 = self.conv_1(x_1)
+        x_1 = ReLU()(x_1)
         x_1 = self.upsample_1(x_1)
 
         # Scale 2
         x_2 = self.avg_pool_2(x)
         x_2 = self.conv_2(x_2)
+        x_2 = ReLU()(x_2)
         x_2 = self.upsample_2(x_2)
 
         # Scale 3
         x_3 = self.avg_pool_3(x)
         x_3 = self.conv_3(x_3)
+        x_3 = ReLU()(x_3)
         x_3 = self.upsample_3(x_3)
 
         # Scale 4
         x_4 = self.avg_pool_4(x)
         x_4 = self.conv_4(x_4)
+        x_4 = ReLU()(x_4)
         x_4 = self.upsample_4(x_4)
 
         # Concatenate feature maps
