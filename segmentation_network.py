@@ -186,9 +186,7 @@ class ResidualBlock(Model):
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.out = Sequential()
-        self.out.add(LayerNormalization(axis=(1, 2), center=True, scale=True))
-        self.out.add(ReLU())
+        self.in_2 = LayerNormalization(axis=(1, 2), center=True, scale=True)
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
@@ -205,12 +203,13 @@ class ResidualBlock(Model):
         x = self.in_1(x)
         x = self.relu(x)
         x = self.conv_2(x)
+        x = self.in_2(x)
 
         # Skip-connection
         x += identity
 
         # Apply ReLU activation
-        x = self.out(x)
+        x = self.relu(x)
 
         return x
 
@@ -218,7 +217,7 @@ class ResidualBlock(Model):
 class ReflectionPadding2D(Layer):
     """Reflection padding layer."""
     def __init__(self, padding: Tuple[int, int]=(3, 3)):
-        self.padding = tuple(padding)
+        self.padding = padding
         super(ReflectionPadding2D, self).__init__()
 
 
