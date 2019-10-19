@@ -140,7 +140,6 @@ class ResidualUpsamplingBlock(Layer):
         self.input_channels = base_channels*input_factor
 
         # Up-sampling layer
-        # TODO: why bilinear instead of nearest interpolation?
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
         # Perform 1x1 convolutions on the identity to adjust the number of
@@ -180,16 +179,17 @@ class ResidualUpsamplingBlock(Layer):
         Returns:
             x: Output tensor
         """
+        # TODO: think about whether this is the right implementation
         # Process identity
         identity = self.process_identity(x)
-
-        # Downsample the mask
-        masks = tf.cast(self.mask_pool(masks), tf.float32)
 
         # Res block computations
         x = self.conv_1(x, training)
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
+
+        # Downsample the mask
+        masks = tf.cast(self.mask_pool(masks), tf.float32)
 
         # Concatenate feature maps and masks
         x = tf.concat((x, masks), axis=3)
