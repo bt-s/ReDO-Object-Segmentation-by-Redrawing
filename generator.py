@@ -263,7 +263,7 @@ class OutputBlock(Layer):
 
 
 class ClassGenerator(Model):
-    """Description here"""
+    """Generator for region/class k"""
     def __init__(self, init_gain: float, k: int, base_channels=32):
         """Class constructor
 
@@ -344,7 +344,7 @@ class ClassGenerator(Model):
         batch_images_fake = tf.zeros(batch_images_real.shape)
 
         for k in range(n_regions):
-            # re-draw sampled region
+            # Re-draw sampled region
             if k == self.k:
                 x = self.block_1(z_k)
                 x = self.up_res_block_1(x, z_k, batch_masks_k,
@@ -422,10 +422,6 @@ class Generator(Model):
             training: Whether we are training
 
         Returns:
-            noise vector and estimated and noise vector along with batch of
-            fake images.
-
-        Returns:
             if update_generator:
                 batch_images_fake: Batch of fake images redrawn for each class
                                    of shape: [batch_size*n_classes, 128, 128, 3]
@@ -443,6 +439,7 @@ class Generator(Model):
                     self.class_generators[k](batch_images_real, batch_masks,
                             n_input=self.n_input, training=training)
 
+            # TODO: find cleaner way to handle the edge case
             if batch_images_fake is None:
                 batch_images_fake = batch_images_k_fake
                 batch_regions_fake = batch_region_k_fake
