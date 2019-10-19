@@ -1,13 +1,19 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
-from tensorflow.keras.initializers import orthogonal
+from tensorflow.keras.constraints import Constraint
+from tensorflow.keras import layers
+from train_utils import UnsupervisedLoss
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.initializers import Orthogonal
+from network_components import SpectralNormalization
 
+tf.random.set_seed(10)
 
 ################################
 # Spectral Normalization Layer #
 ################################
 
-class SpectralNormalization(Layer):
+
+class SpectralNormalization(layers.Layer):
     def __init__(self, layer, n_power_iterations=1):
         """
         Spectral Normalization Layer to wrap around a Conv2D Layer. Kernel Weights are normalized before each forward
@@ -92,7 +98,7 @@ class SpectralNormalization(Layer):
         output = self.layer(x)
 
         # re-assign original weights
-        # self.layer.weights[0].assign(W_orig)
+        self.layer.weights[0].assign(self.W_orig)
         # print('R_orig_reassigned: ', self.layer.weights[0][0, :, :, 0])
         return output
 
@@ -100,60 +106,51 @@ class SpectralNormalization(Layer):
         self.layer.weights[0].assign(self.W_orig)
 
 
-#########################
-# Self-Attention Module #
-#########################
+def make_discriminator_model():
+  model = tf.keras.Sequential()
+  model.add(SpectralNormalization(layers.Conv2D(64, kernel_size=(3,3), strides=(1,1), padding='same',
+                          kernel_initializer=Orthogonal(gain=1.0), input_shape=(128, 128, 3))))
+  return model
 
-class SelfAttentionModule(Layer):
-    def __init__(self, init_gain, output_channels, key_size=None):
-        super(SelfAttentionModule, self).__init__()
 
-        # set number of key channels
-        if key_size is None:
-            self.key_size = output_channels // 8
-        else:
-            self.key_size = key_size
+if __name__ == '__main__':
 
-        # trainable parameter to control influence of learned attention maps
-        self.gamma = tf.Variable(0.0, name='self_attention_gamma')
+    # fake and real image
+    generated_image = tf.random.normal([1, 128, 128, 3])
+    input_image = tf.random.normal([1, 128, 128, 3])
 
-        # learned transformation
-        self.f = SpectralNormalization(Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.g = SpectralNormalization(Conv2D(filters=self.key_size, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.h = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.out = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+    # loss and optimizer
+    loss = UnsupervisedLoss(lambda_z=5)
+    optimizer = SGD(learning_rate=0.1)
 
-    @staticmethod
-    def compute_attention(Q, K, V):
-        """
-        Compute attention maps from queries, keys and values.
-        :param Q: Queries
-        :param K: Keys
-        :param V: Values
-        :return: attention map with same shape as input feature maps
-        """
+    # create network
+    discriminator = make_discriminator_model()
 
-        dot_product = tf.matmul(Q, K, transpose_b=True)
-        weights = Softmax(axis=2)(dot_product)
-        x = tf.matmul(weights, V)
-        return x
+    # perform forward pass
+    with tf.GradientTape() as tape:
+        d_logits_real = discriminator(input_image)
+        d_logits_fake = discriminator(generated_image)
+        d_loss_r, d_loss_f = loss.get_d_loss(d_logits_real, d_logits_fake)
+        d_loss = d_loss_r + d_loss_f
+    gradients = tape.gradient(d_loss, discriminator.trainable_variables)
+    print('Gradients: ', gradients[0][:, 0, 0, :])
+    tf.debugging.assert_equal(discriminator.layers[0].weights[0], discriminator.layers[0].W_orig)
+    W_old = tf.identity(discriminator.layers[0].W_orig)
+    optimizer.apply_gradients(zip(gradients, discriminator.trainable_variables))
+    tf.debugging.assert_equal(discriminator.layers[0].W_orig, W_old)
+    tf.debugging.assert_equal(discriminator.layers[0].weights[0], W_old-0.1*gradients[0])
+    print('W_post_update: ', discriminator.layers[0].weights[0][:, 0, 0, :])
 
-    def call(self, x, training):
+    with tf.GradientTape() as tape:
+        d_logits_real = discriminator(input_image)
+        d_logits_fake = discriminator(generated_image)
+        d_loss_r, d_loss_f = loss.get_d_loss(d_logits_real, d_logits_fake)
+        d_loss = d_loss_r + d_loss_f
+    gradients = tape.gradient(d_loss, discriminator.trainable_variables)
+    print('Gradients: ', gradients[0][0, :, :, 0])
+    optimizer.apply_gradients(zip(gradients, discriminator.trainable_variables))
+    #print('W_post_update: ', discriminator.layers[0].weights[0][:, 0, 0, :])
 
-        H, W, C = x.shape.as_list()[1:]  # width, height, channel
-
-        # compute query, key and value matrices
-        Q = tf.reshape(self.f(x, training), [-1, H * W, self.key_size])
-        K = tf.reshape(self.g(x, training), [-1, H * W, self.key_size])
-        V = tf.reshape(self.h(x, training), [-1, H * W, C])
-
-        # compute attention maps
-        o = self.compute_attention(Q, K, V)
-        o = tf.reshape(o, [-1, H, W, C])
-        o = self.out(o, training)
-
-        # add weighted attention maps to input feature maps
-        output = self.gamma * o + x
-        #print('SA_Gamma: ', self.gamma)
-
-        return output
+    [-2.2978231e-04 - 3.8245428e-04  1.2784777e-04]
+    [-5.1827502e-04 - 3.5870259e-04  3.9433449e-05]
+    [-3.0768802e-04 - 4.4223058e-04 - 3.3559548e-04]], shape = (3, 3), dtype = float32)

@@ -373,9 +373,10 @@ if __name__ == '__main__':
     Faces = FaceDataset(root='Datasets/Faces/', image_dir='images/', label_dir='labels/', path_file='paths.txt',
                              split_file='train_val_test_split.txt')
     Faces.summary()
-    faces_training = Faces.get_split(split='training')
-    faces_validation = Faces.get_split(split='validation', size=400, shuffle=True)
+    faces_training = Faces.get_split(split='training', batch_size=1)
+    faces_validation = Faces.get_split(split='validation', batch_size=1, shuffle=True)
     faces_test = Faces.get_split(split='test')
+    print(tf.data.experimental.cardinality(faces_training))
 
     for idx, (batch_images, batch_labels) in enumerate(flowers_training):
         for image, label in zip(batch_images, batch_labels):
