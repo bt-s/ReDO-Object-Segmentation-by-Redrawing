@@ -209,6 +209,13 @@ class ResidualUpsamplingBlock(Layer):
 
 
 class OutputBlock(Layer):
+    """Final block of the generator network:
+        - Conditional Batch Norm
+        - ReLU
+        - Concatenate the mask
+        - Conv 3x3
+        - Tanh activation
+    """
     def __init__(self, init_gain: float, base_channels: int,
             output_factor: int):
         """Class constructior
