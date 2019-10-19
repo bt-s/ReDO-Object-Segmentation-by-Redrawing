@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-"""generator.py - <explanation-here>.
+"""generator.py - Generator model for single classes and for k classes as
+                  well as network components for these
 
 For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
@@ -264,7 +265,7 @@ class OutputBlock(Layer):
 
 class ClassGenerator(Model):
     """Generator for region/class k"""
-    def __init__(self, init_gain: float, k: int, base_channels=32):
+    def __init__(self, init_gain: float, k: int, base_channels: int=32):
         """Class constructor
 
         Attributes:
