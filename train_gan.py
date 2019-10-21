@@ -157,7 +157,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         # Update weights
         optimizers['G'].apply_gradients(zip(g_gradients,
-            models['G'].trainable_variables))
+            models['G'].class_generators[k].trainable_variables))
         optimizers['F'].apply_gradients(zip(f_gradients,
             models['F'].trainable_variables))
         optimizers['I'].apply_gradients(zip(i_gradients,
