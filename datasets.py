@@ -79,8 +79,8 @@ class Dataset:
             ValueError: if `file_type` is not one of the correct values
         """
         # check for correct type of file
-        if not (file_type == 'path' or 'split'):
-            raise ValueError(f'{file_type} not one of path, split')
+        #if not (file_type == 'path' or 'split'):
+            #raise ValueError(f'{file_type} not one of path, split')
 
         items = []
         with open(filename, 'r') as file:
@@ -147,8 +147,8 @@ class Dataset:
             ValueError if `split` not in SPLIT_KEYS
         """
 
-        if split not in Dataset.SPLIT_KEYS:
-            raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        #if split not in Dataset.SPLIT_KEYS:
+            #raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
@@ -216,8 +216,8 @@ class BirdDataset(Dataset):
         dataset"""
 
         # check for correct type of file
-        if not (file_type == 'path' or 'split'):
-            raise ValueError(f'{file_type} not one of path, split')
+        #if not (file_type == 'path' or 'split'):
+            #raise ValueError(f'{file_type} not one of path, split')
 
         items = []
         with open(filename, 'r') as file:
@@ -236,8 +236,8 @@ class BirdDataset(Dataset):
     def get_split(self, split: str, size: int=None, batch_size: int=25,
                   shuffle: bool=False) -> tf.data.Dataset:
         """See `Dataset.get_split`"""
-        if split not in Dataset.SPLIT_KEYS:
-            raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        #if split not in Dataset.SPLIT_KEYS:
+            #raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
@@ -345,8 +345,8 @@ class FaceDataset(Dataset):
         """See `Dataset.get_split` differences specific to the dataset file
         organization
         """
-        if split not in Dataset.SPLIT_KEYS:
-            raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        #if split not in Dataset.SPLIT_KEYS:
+            #raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
