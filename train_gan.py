@@ -242,7 +242,8 @@ def train(args: Namespace, datasets: Dict):
     for epoch in range(args.epochs):
         # Print progress
         print('###########################################################')
-        print(f'Epoch: {epoch + 1}')
+        #print(f'Epoch: {epoch + 1}')
+        print('Epoch: ', epoch+1)
 
         # Each epoch consists of two phases: training and validation
         phases = ['train', 'val']
@@ -250,14 +251,16 @@ def train(args: Namespace, datasets: Dict):
             training = True if phase == 'train' else False
 
             # Print progress
-            print(f'Phase: {phase}')
+            #print(f'Phase: {phase}')
+            print('Phase: ', phase)
 
             # Iterate over batches
             for batch_id, (batch_images_real, _) in enumerate(datasets[phase]):
 
                 # Print progress
                 ds_len = tf.data.experimental.cardinality(datasets[phase])
-                print(f'Batch: {batch_id + 1} / {ds_len}')
+                #print(f'Batch: {batch_id + 1} / {ds_len}')
+                print('Batch {:d}/{:d}'.format(batch_id+1, ds_len))
 
                 if (batch_id % 2) == 0:
                     # Update generator
@@ -272,9 +275,14 @@ def train(args: Namespace, datasets: Dict):
                 # Save model weights
                 if (batch_id + 1) % args.checkpoint_iter == 0:
                     for model in models.values():
-                        model.save_weights(f'Weights/{args.session_name}/' \
-                                f'{model.model_name}/Epoch_{str(epoch+1)}' \
-                                f'batch_{str(batch_id+1)}')
+                        #model.save_weights(f'Weights/{args.session_name}/' \
+                         #       f'{model.model_name}/Epoch_{str(epoch+1)}' \
+                          #      f'batch_{str(batch_id+1)}')
+                        model.save_weights(
+                            'Weights/' + args.session_name + '/' +
+                            model.model_name + '/Epoch_' + str(epoch + 1) +
+                            'batch_' + str(batch_id + 1) + '/'
+                        )
 
         # Log epoch for tensorboard and print summary
         log_epoch(metrics, tensorboard_writers, epoch, scheme='unsupervised')
