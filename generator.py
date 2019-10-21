@@ -505,8 +505,10 @@ if __name__ == '__main__':
         d_logits_fake = discriminator(batch_image_fake, training=True)
         g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k_hat)
         g_loss = g_loss_d + g_loss_i
-        print(f'Generator loss (discriminator): {g_loss_d}')
-        print(f'Generator loss (information): {g_loss_i}')
+        #print(f'Generator loss (discriminator): {g_loss_d}')
+        #print(f'Generator loss (information): {g_loss_i}')
+        print('Generator loss (discriminator): ', g_loss_d)
+        print('Generator loss (information): ', g_loss_i)
 
     gradients = tape.gradient(g_loss, generator.trainable_variables)
 
