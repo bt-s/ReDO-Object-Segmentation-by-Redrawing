@@ -63,7 +63,7 @@ def parse_train_args():
     return parser.parse_args(argv[1:])
 
 
-def discriminator_update(batch_images_real: tf.Tensor, training: bool,
+def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizers: Dict,
         models: Dict, metrics: Dict, adversarial_loss: UnsupervisedLoss,
         phase: str):
     """Updates the real and fake disciminator losses
@@ -265,7 +265,7 @@ def train(args: Namespace, datasets: Dict):
                             metrics, optimizers, adversarial_loss, phase=phase)
                 else:
                     # Update discriminator
-                    discriminator_update(batch_images_real, training,
+                    discriminator_update(batch_images_real, training, optimizers,
                             models, metrics, adversarial_loss,
                             phase=phase)
 

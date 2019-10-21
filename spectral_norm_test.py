@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch_sn
 import tensorflow as tf
 import numpy as np
 from collections import OrderedDict
@@ -17,15 +16,15 @@ W = np.random.randn(3, 3, 1, 1)
 W_tf = tf.convert_to_tensor(W)
 
 
-# torch forward pass
+###############################
+# torch forward + backward pass
+###############################
 
-def torch_fwd(inp, label, spectral_normalization=False):
+def torch_fwd(inp, label, n_iter, spectral_normalization=False):
 
     print('#############')
     print('Torch Forward')
     print('#############')
-
-    torch.manual_seed(0)
 
     # create model with or without SN
     if spectral_normalization:
@@ -33,7 +32,7 @@ def torch_fwd(inp, label, spectral_normalization=False):
                                 padding=1, bias=False)
         conv_layer.weight.data = W_t
         model = torch.nn.Sequential(OrderedDict([
-            ('conv', torch_sn.spectral_norm(conv_layer)),
+            ('conv', nn.utils.spectral_norm(conv_layer)),
             ('avg', torch.nn.AvgPool2d(3))
         ]))
     else:
@@ -50,43 +49,49 @@ def torch_fwd(inp, label, spectral_normalization=False):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
     print('W_orig: \n', model.conv.weight.data.numpy()[0, 0, :, :])
 
-    for i in range(1):
-        print('Forward Pass ', i+1)
-
+    # perform forward and backward passes and print weights
+    for i in range(n_iter):
+        print('Forward Pass: ', i+1)
         model.zero_grad()
+        # get and print output
         out1 = model(inp)
+        print('Output: ', out1.detach().numpy())
+        # compute loss
         loss = loss_fn(out1, label)
+        # print spectrally normalized weights
         if spectral_normalization:
             print('W_sn: \n', model.conv.weight.data.numpy()[0, 0, :, :])
-        print('Trainable Variables:')
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                print(name)
+        # compute and print gradients
         print('Gradients:')
-        getattr(model.conv, 'weight_orig').register_hook(lambda grad: print(grad.numpy()[0, 0, :, :]))
+        if spectral_normalization:
+            getattr(model.conv, 'weight_orig').register_hook(lambda grad: print(grad.numpy()[0, 0, :, :]))
+        else:
+            getattr(model.conv, 'weight').register_hook(lambda grad: print(grad.numpy()[0, 0, :, :]))
         loss.backward()
+        # perform update
         optimizer.step()
+        # print updated weights
         if spectral_normalization:
             print('W_updated: \n', getattr(model.conv, 'weight_orig').detach().numpy()[0, 0, :, :])
         else:
             print('W_updated: \n', getattr(model.conv, 'weight').detach().numpy()[0, 0, :, :])
-        out2 = model(inp)
-        print('Output before update: ', out1.detach().numpy())
-        print('Output after update: ', out2.detach().numpy())
-
-    return out1, out2
 
 
-def tf_fwd(inp, label, spectral_normalization=False):
+##############################
+# tf forward + backward pass #
+##############################
+
+def tf_fwd(inp, label, n_iter, spectral_normalization=False):
 
     print('##########')
     print('TF Forward')
     print('##########')
 
+    # create object with or without sn
     if spectral_normalization:
         conv = network_components.SpectralNormalization(
             tf.keras.layers.Conv2D(
-                    1, kernel_size=(3, 3), strides=(1, 1), weights=[W_tf], trainable=False,
+                    1, kernel_size=(3, 3), strides=(1, 1), weights=[W_tf],
                     padding='same', input_shape=(3, 3, 1), use_bias=False))
         pool = tf.keras.layers.AveragePooling2D(pool_size=3)
     else:
@@ -99,38 +104,36 @@ def tf_fwd(inp, label, spectral_normalization=False):
     loss_fn = tf.keras.losses.MeanSquaredError()
     optimizer = tf.keras.optimizers.SGD(learning_rate=0.1)
 
+    # initialize and print weights
     _ = conv(inp, training=False)
     if spectral_normalization:
-        print('W_orig: \n', conv.layer.weights[0].numpy()[:, :, 0, 0])
-
+        print('W_orig: \n', conv.layer.kernel_orig.numpy()[:, :, 0, 0])
     else:
-        print('W_orig: \n', conv.weights[0].numpy()[:, :, 0, 0])
+        print('W_orig: \n', conv.kernel.numpy()[:, :, 0, 0])
 
-    for i in range(1):
-        print('Forward Pass ', i+1)
+    # perform forward and backward passes
+    for i in range(n_iter):
+        print('Forward Pass: ', i+1)
+
         with tf.GradientTape() as tape:
+            # get and print output
             out11 = conv(inp, training=True)
             out1 = pool(out11)
+            print('Output: ', out1.numpy())
+            # compute loss
             loss = loss_fn(label, out1)
+        # print spectrally normalized weights
         if spectral_normalization:
-            print('W_sn: \n', conv.layer.weights[0].numpy()[:, :, 0, 0])
-        print(conv.trainable_variables)
+            print('W_sn: \n', conv.layer.kernel.numpy()[:, :, 0, 0])
+        # compute and print gradients
         gradients = tape.gradient(loss, conv.trainable_variables)
-        print(gradients)
         print('Gradients:\n', gradients[0].numpy()[:, :, 0, 0])
-
+        # perform update and print weights
         optimizer.apply_gradients(zip(gradients, conv.trainable_variables))
-        print('Trainable:\n ', conv.trainable_variables[0].numpy()[:, :, 0, 0])
         if spectral_normalization:
-            print('W_updated: \n', conv.layer.weights[0].numpy()[:, :, 0, 0])
-
+            print('W_updated: \n', conv.layer.kernel_orig.numpy()[:, :, 0, 0])
         else:
-            print('W_updated: \n', conv.weights[0].numpy()[:, :, 0, 0])
-        out21 = conv(inp, training=True)
-        out2 = pool(out21)
-        print('Output before update: ', out1.numpy())
-        print('Output after update: ', out2.numpy())
-    return out1, out2
+            print('W_updated: \n', conv.kernel.numpy()[:, :, 0, 0])
 
 
 if __name__ == '__main__':
@@ -138,14 +141,17 @@ if __name__ == '__main__':
     # test spectral normalization
     sn = True
 
-    # torch forward pass
+    # number of passes
+    n_iter = 3
+
+    # torch forward  and backward passes
     inp_t = torch.ones(1, 1, 3, 3)
     label_t = torch.ones(1, 1, 1, 1)
 
-    out_bu, out_au = torch_fwd(inp_t, label_t, spectral_normalization=sn)
+    torch_fwd(inp_t, label_t, n_iter, spectral_normalization=sn)
 
-    # tf forward pass
+    # tf forward and backward passes
     inp_tf = tf.ones([1, 3, 3, 1])
     label_tf = tf.ones([1, 1, 1, 1])
 
-    out_bu, out_au = tf_fwd(inp_tf, label_tf, spectral_normalization=sn)
+    tf_fwd(inp_tf, label_tf, n_iter, spectral_normalization=sn)
