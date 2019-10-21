@@ -32,7 +32,7 @@ if __name__ == '__main__':
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=init_gain, weight_decay=1e-4)
-    epoch = 9
+    epoch = 10
     batch_id = 350
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Epoch_{str(epoch)}_Batch_{str(batch_id)}/'))
