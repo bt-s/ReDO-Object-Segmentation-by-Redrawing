@@ -254,10 +254,10 @@ class EarlyStopping:
             # Increase counter
             self.counter += 1
 
-            print(f'Early Stopping Metric decreased ({self.best_score} ' \
-                  f'--> {score})')
-            print(f'EarlyStopping counter: {self.counter} out of ' \
-                  f'{self.patience}')
+            #print(f'Early Stopping Metric decreased ({self.best_score} ' \
+             #     f'--> {score})')
+            #print(f'EarlyStopping counter: {self.counter} out of ' \
+                  #f'{self.patience}')
             print('###########################################################')
 
             # Stop training if patience is reached
@@ -284,26 +284,26 @@ class EarlyStopping:
             session_name:
         """
         if self.verbose:
-            print(f'Early Stopping Metric increased ({self.best_score} --> '
-                  f'{score}).\nSaving model ...')
+            #print(f'Early Stopping Metric increased ({self.best_score} --> '
+             #     f'{score}).\nSaving model ...')
             print('###########################################################')
 
         # Save model weights at the end of epoch
-        if type(models) is dict:
-            for model in models.values():
-                if type(model) is dict:
-                    for sub_model in model.values():
-                        sub_model.save_weights(f'Weights/{session_name}/' \
-                                f'{sub_model.model_name}/Epoch_' \
-                                f'{str(self.best_epoch)}/')
+        #if type(models) is dict:
+            #for model in models.values():
+                #if type(model) is dict:
+                    #for sub_model in model.values():
+                        #sub_model.save_weights(f'Weights/{session_name}/' \
+                         #       f'{sub_model.model_name}/Epoch_' \
+                          #      f'{str(self.best_epoch)}/')
 
-                else:
-                    model.save_weights(f'Weights/{session_name}/' \
-                            f'{model.model_name}/Epoch_{str(self.best_epoch)}/')
+                #else:
+                   # model.save_weights(f'Weights/{session_name}/' \
+                    #        f'{model.model_name}/Epoch_{str(self.best_epoch)}/')
 
-        else:
-            models.save_weights(f'Weights/{session_name}/{models.model_name}/' \
-                    'Epoch_{str(self.best_epoch)}/')
+        #else:
+            #models.save_weights(f'Weights/{session_name}/{models.model_name}/' \
+             #       'Epoch_{str(self.best_epoch)}/')
 
         # Set current score as new maximum
         self.best_score = score
