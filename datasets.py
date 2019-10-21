@@ -444,7 +444,7 @@ if __name__ == '__main__':
     birds_test = Birds.get_split(split='test')
 
     # Flowers
-    Flowers = FlowerDataset(root='Datasets/Flowers/', image_dir='images/',
+    Flowers = FlowerDataset(root='../Datasets/Flowers/', image_dir='images/',
                             label_dir='labels/', path_file='paths.txt',
                             split_file='train_val_test_split.txt')
     Flowers.summary()
