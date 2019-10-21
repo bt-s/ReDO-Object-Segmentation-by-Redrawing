@@ -290,7 +290,7 @@ class BirdDataset(Dataset):
 
 class FlowerDataset(Dataset):
     """Subclass for the Flowers dataset"""
-    def __init__(self, root: str='Datasets/Flowers/', image_dir: str='images/',
+    def __init__(self, root: str='../Datasets/Flowers/', image_dir: str='images/',
                  label_dir: str='labels/', path_file: str='paths.txt',
                  split_file: str='train_val_test_split.txt'):
         """See `Dataset.__init__`"""
@@ -444,7 +444,7 @@ if __name__ == '__main__':
     birds_test = Birds.get_split(split='test')
 
     # Flowers
-    Flowers = FlowerDataset(root='../Datasets/Flowers/', image_dir='images/',
+    Flowers = FlowerDataset(root='Datasets/Flowers/', image_dir='images/',
                             label_dir='labels/', path_file='paths.txt',
                             split_file='train_val_test_split.txt')
     Flowers.summary()
