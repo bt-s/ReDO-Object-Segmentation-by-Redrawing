@@ -432,14 +432,12 @@ class Generator(Model):
                 batch_images_fake: Batch of fake images redrawn for each class
                                    of shape: [batch_size*n_classes, 128, 128, 3]
         """
-        batch_images_fake, batch_z_k, batch_regions_fake = None, None, None
 
         k = np.random.randint(0, 2)
 
-        batch_images_fake, batch_region_fake, batch_z_k = \
+        batch_images_fake, batch_regions_fake, batch_z_k = \
                     self.class_generators[k](batch_images_real, batch_masks,
                             n_input=self.n_input, training=training)
-
         # Return batch of fake images
         if update_generator:
             return batch_images_fake, batch_regions_fake, batch_z_k, k

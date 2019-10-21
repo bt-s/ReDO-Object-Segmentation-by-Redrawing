@@ -130,7 +130,6 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         batch_images_fake, batch_regions_fake, batch_z_k, k = models['G'](
                 batch_images_real, batch_masks, update_generator=True,
                 training=training)
-
         # Get the recovered z-value from the information network
         batch_z_k_hat = models['I'](batch_regions_fake, training=training)
 
