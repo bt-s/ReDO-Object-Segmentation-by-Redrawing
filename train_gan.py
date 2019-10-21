@@ -273,13 +273,13 @@ def train(args: Namespace, datasets: Dict):
 
                 # Save model weights
                 if (batch_id + 1) % args.checkpoint_iter == 0:
-                    for model in models.values():
+                    #for model in models.values():
                         #model.save_weights(f'Weights/{args.session_name}/' \
                          #       f'{model.model_name}/Epoch_{str(epoch+1)}' \
                           #      f'batch_{str(batch_id+1)}')
-                        model.save_weights(
+                        models['F'].save_weights(
                             'Weights/' + args.session_name + '/' +
-                            model.model_name + '/Epoch_' + str(epoch + 1) +
+                            models['F'].model_name + '/Epoch_' + str(epoch + 1) +
                             '_Batch_' + str(batch_id + 1) + '/'
                         )
 
