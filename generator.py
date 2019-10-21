@@ -436,7 +436,7 @@ class Generator(Model):
 
         k = np.random.randint(0, 2)
 
-        batch_images_k_fake, batch_region_k_fake, z_k = \
+        batch_images_fake, batch_region_fake, batch_z_k = \
                     self.class_generators[k](batch_images_real, batch_masks,
                             n_input=self.n_input, training=training)
 
