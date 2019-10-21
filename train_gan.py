@@ -39,7 +39,7 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=8)
+    parser.add_argument('-b', '--batch-size', type=int, default=25)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
@@ -127,7 +127,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         # Get fake images from generator
         # Number of images generated = batch_size * n_classes
-        batch_images_fake, batch_regions_fake, batch_z_k = models['G'](
+        batch_images_fake, batch_regions_fake, batch_z_k, k = models['G'](
                 batch_images_real, batch_masks, update_generator=True,
                 training=training)
 
@@ -148,10 +148,10 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
     if training:
         # Compute gradients
         gradients = tape.gradient(g_loss, models['F'].trainable_variables +
-                models['G'].trainable_variables)
+                models['G'].class_generators[k].trainable_variables)
 
         f_gradients = gradients[:len(models['F'].trainable_variables)]
-        g_gradients = gradients[-len(models['G'].trainable_variables):]
+        g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
 
         i_gradients = tape.gradient(g_loss_i,
                 models['I'].trainable_variables)

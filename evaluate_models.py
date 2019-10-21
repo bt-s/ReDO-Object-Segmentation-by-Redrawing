@@ -23,8 +23,8 @@ if __name__ == '__main__':
     session_name = 'Unsupervised_Flowers'
 
     # Iteration to evaluate
-    epoch = 4
-    batch_id = 400
+    epoch = 1
+    batch_id = 350
 
     # Create datasets
     dataset = FlowerDataset()
@@ -44,12 +44,12 @@ if __name__ == '__main__':
     discriminator = Discriminator(init_gain=init_gain)
     segmentation_network.load_weights('Weights/' + session_name + '/' +
             str(segmentation_network.model_name) + '/Epoch_' + str(epoch) +
-            'batch_' + str(batch_id) + '/')
+            '_Batch_' + str(batch_id) + '/')
     generator.load_weights((f'Weights/{session_name}/'
-        f'{str(generator.model_name)}/Epoch_{str(epoch)}batch_'
+        f'{str(generator.model_name)}/Epoch_{str(epoch)}_Batch_'
         f'{str(batch_id)}/'))
     discriminator.load_weights((f'Weights/{session_name}/'
-        f'{str(discriminator.model_name)}/Epoch_{str(epoch)}batch_'
+        f'{str(discriminator.model_name)}/Epoch_{str(epoch)}_Batch_'
         f'{str(batch_id)}/'))
 
     # Iterate over batches

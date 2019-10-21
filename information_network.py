@@ -62,9 +62,8 @@ class InformationConservationNetwork(Model):
         # TODO: Why is units here self.n_classes*n_ouput instead of n_output?
         # According to the paper, units should be of size 32 (i.e.
         # self.n_classes)
-        self.final_layer = Dense(units=self.n_classes*n_output,
+        self.final_layer = Dense(units=n_output,
                 kernel_initializer=orthogonal(gain=init_gain))
-
 
     def call(self, x: tf.Tensor, training: bool):
         """Applies the information conservation network
@@ -83,7 +82,6 @@ class InformationConservationNetwork(Model):
         x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * \
                 self.block_4.pool_size[1]
         x = self.final_layer(x)
-        x = tf.reshape(x, [x.shape[0]*self.n_classes, -1])
 
         return x
 
