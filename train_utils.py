@@ -54,8 +54,7 @@ class UnsupervisedLoss(Loss):
         # should be 1)
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
         # TODO: check whether the square-root should be taken instead
-        g_loss_i = self.lambda_z * tf.reduce_mean((z_k - z_k_hat) * \
-                (z_k - z_k_hat))
+        g_loss_i = self.lambda_z * tf.reduce_mean(tf.norm(z_k - z_k_hat, axis=1))
 
         return g_loss_d, g_loss_i
 
