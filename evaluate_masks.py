@@ -32,8 +32,8 @@ if __name__ == '__main__':
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=init_gain, weight_decay=1e-4)
-    epoch = 3
-    batch_id = 600
+    epoch = 4
+    batch_id = 400
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Epoch_{str(epoch)}batch_{str(batch_id)}/'))
 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
             image -= np.min(image)
             ax[0].imshow(image)
             ax[1].set_title('Prediction')
-            ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray')
+            ax[1].imshow(prediction.numpy()[:, :, 0], cmap='gray')
             ax[2].set_title('Label')
             ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()

@@ -39,14 +39,14 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=8)
+    parser.add_argument('-b', '--batch-size', type=int, default=10)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-e', '--epochs', type=int, default=100)
-    parser.add_argument('-c', '--checkpoint-iter', type=int, default=200)
+    parser.add_argument('-c', '--checkpoint-iter', type=int, default=350)
     parser.add_argument('-s', '--session-name', type=str, default='MySession')
     parser.add_argument('-z', '--z-dim', type=int, default=32,
             help='Dimension of latent z-variable')
@@ -281,7 +281,7 @@ def train(args: Namespace, datasets: Dict):
                         model.save_weights(
                             'Weights/' + args.session_name + '/' +
                             model.model_name + '/Epoch_' + str(epoch + 1) +
-                            'batch_' + str(batch_id + 1) + '/'
+                            '_Batch_' + str(batch_id + 1) + '/'
                         )
 
         # Log epoch for tensorboard and print summary

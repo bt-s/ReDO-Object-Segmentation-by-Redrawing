@@ -23,8 +23,8 @@ if __name__ == '__main__':
     session_name = 'Unsupervised_Flowers'
 
     # Iteration to evaluate
-    epoch = 12
-    batch_id = 200
+    epoch = 4
+    batch_id = 400
 
     # Create datasets
     dataset = FlowerDataset()
@@ -76,8 +76,8 @@ if __name__ == '__main__':
         d_loss_r, d_loss_f = loss.get_d_loss(d_logits_real, d_logits_fake)
         print(f'Generator loss (discriminator): {g_loss_d}')
         print(f'Generator loss (information): {g_loss_i}')
-        print(f'Discriminator loss (real): {g_loss_r}')
-        print(f'Discriminator loss (fake): {g_loss_f}')
+        print(f'Discriminator loss (real): {d_loss_r}')
+        print(f'Discriminator loss (fake): {d_loss_f}')
 
         for i, (image_real, mask_logits, image_fake) in enumerate(zip(
             batch_images_real, batch_masks_logits,
