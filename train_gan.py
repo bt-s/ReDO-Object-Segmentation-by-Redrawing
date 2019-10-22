@@ -154,8 +154,11 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         print(models['I'].final_layers)
         print(k)
         print(models['I'].final_layers[1-k].trainable_variables)
-        trainable_i = models['I'].trainable_variables.remove(models['I'].final_layers[1-k].trainable_variables[0])
-        trainable_i = trainable_i.remove(models['I'].final_layers[1-k].trainable_variables[1])
+        if len(models['I'].final_layers[1-k].trainable_variables):
+            trainable_i = models['I'].trainable_variables.remove(models['I'].final_layers[1-k].trainable_variables[0])
+            trainable_i = trainable_i.remove(models['I'].final_layers[1-k].trainable_variables[1])
+        else:
+            trainable_i = models['I'].trainable_variables
         i_gradients = tape.gradient(g_loss_i, trainable_i)
         print(i_gradients)
 
