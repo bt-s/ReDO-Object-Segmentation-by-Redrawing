@@ -81,12 +81,12 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizer
 
         # Get fake images from generator
         # The number of images generated = batch_size * n_classes
-        batch_images_fake = models['G'](batch_images_real[:batch_images_real.shape[0]//2],
+        batch_images_fake = models['G'](batch_images_real,
                 batch_masks_logits, update_generator=False,
                 training=training)
 
         # Get logits for real and fake images
-        d_logits_real = models['D'](batch_images_real[:batch_images_real.shape[0]//2], training)
+        d_logits_real = models['D'](batch_images_real, training)
         d_logits_fake = models['D'](batch_images_fake, training)
 
         # Compute discriminator loss for current batch
@@ -270,11 +270,13 @@ def train(args: Namespace, datasets: Dict):
 
                 if (batch_id % 2) == 0:
                     batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
+                    print(batch_images_real.shape)
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
                 else:
                     # Update discriminator
+                    batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
                     discriminator_update(batch_images_real, training, optimizers,
                             models, metrics, adversarial_loss,
                             phase=phase)
