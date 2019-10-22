@@ -151,7 +151,9 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         f_gradients = gradients[:len(models['F'].trainable_variables)]
         g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
-
+        print(models['I'].final_layers)
+        print(k)
+        print(models['I'].final_layers[1-k].trainable_variables)
         trainable_i = models['I'].trainable_variables.remove(models['I'].final_layers[1-k].trainable_variables[0])
         trainable_i = trainable_i.remove(models['I'].final_layers[1-k].trainable_variables[1])
         i_gradients = tape.gradient(g_loss_i, trainable_i)
