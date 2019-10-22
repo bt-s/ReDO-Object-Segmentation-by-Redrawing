@@ -94,8 +94,8 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizer
             d_logits_real, d_logits_fake)
 
         d_loss = d_loss_real + d_loss_fake
-        print('Discriminator loss (real): ', d_loss_real)
-        print('Discriminator loss (fake): ', d_loss_fake)
+        #print('Discriminator loss (real): ', d_loss_real)
+        #print('Discriminator loss (fake): ', d_loss_fake)
 
     if training:
         # Compute gradients
@@ -141,8 +141,8 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
                 batch_z_k, batch_z_k_hat)
 
         g_loss = g_loss_d + g_loss_i
-        print('Generator loss (discriminator): ', g_loss_d)
-        print('Discriminator loss (information): ', g_loss_i)
+        #print('Generator loss (discriminator): ', g_loss_d)
+        #print('Discriminator loss (information): ', g_loss_i)
 
     if training:
         # Compute gradients
