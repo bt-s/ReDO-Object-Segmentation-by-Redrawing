@@ -151,16 +151,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         f_gradients = gradients[:len(models['F'].trainable_variables)]
         g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
-        print(models['I'].final_layers)
-        print(k)
-        print(models['I'].final_layers[1-k].trainable_variables)
-        if len(models['I'].final_layers[1-k].trainable_variables):
-            trainable_i = models['I'].trainable_variables.copy()
-            trainable_i.remove(models['I'].final_layers[1 - k].trainable_variables[0])
-            trainable_i.remove(models['I'].final_layers[1-k].trainable_variables[1])
-        else:
-            trainable_i = models['I'].trainable_variables.copy()
-        i_gradients = tape.gradient(g_loss_i, trainable_i)
+        i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
         print(i_gradients)
 
         # Update weights
@@ -169,7 +160,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         optimizers['F'].apply_gradients(zip(f_gradients,
             models['F'].trainable_variables))
         optimizers['I'].apply_gradients(zip(i_gradients,
-            trainable_i))
+            models['I'].trainable_variables))
 
     # Update summary with computed loss
     metrics['g_d_loss_' + phase](g_loss_d)
