@@ -264,7 +264,7 @@ def train(args: Namespace, datasets: Dict):
                 print('Batch {:d}/{:d}'.format(batch_id+1, ds_len))
 
                 if (batch_id % 2) == 0:
-                    batch_images_real = batch_images_real[:batch_images_real.shape[0//2]]
+                    batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
