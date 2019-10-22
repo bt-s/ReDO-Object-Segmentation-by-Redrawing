@@ -72,6 +72,8 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
+        self.final_layers[1-k].trainable = False
+        self.final_layers[k].trainable = True
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)

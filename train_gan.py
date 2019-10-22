@@ -152,7 +152,6 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         f_gradients = gradients[:len(models['F'].trainable_variables)]
         g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
         i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
-        print(i_gradients)
 
         # Update weights
         optimizers['G'].apply_gradients(zip(g_gradients,
@@ -262,7 +261,6 @@ def train(args: Namespace, datasets: Dict):
 
                 if (batch_id % 2) == 0:
                     batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
-                    print(batch_images_real.shape)
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
