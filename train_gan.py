@@ -39,7 +39,7 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=16)
+    parser.add_argument('-b', '--batch-size', type=int, default=32)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
@@ -81,12 +81,12 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizer
 
         # Get fake images from generator
         # The number of images generated = batch_size * n_classes
-        batch_images_fake = models['G'](batch_images_real,
+        batch_images_fake = models['G'](batch_images_real[:batch_images_real.shape[0]//2],
                 batch_masks_logits, update_generator=False,
                 training=training)
 
         # Get logits for real and fake images
-        d_logits_real = models['D'](batch_images_real, training)
+        d_logits_real = models['D'](batch_images_real[:batch_images_real.shape[0]//2], training)
         d_logits_fake = models['D'](batch_images_fake, training)
 
         # Compute discriminator loss for current batch
@@ -131,7 +131,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
                 batch_images_real, batch_masks, update_generator=True,
                 training=training)
         # Get the recovered z-value from the information network
-        batch_z_k_hat = models['I'](batch_regions_fake, training=training)
+        batch_z_k_hat = models['I'](batch_images_fake, k=k, training=training)
 
         # Get logits for fake images
         d_logits_fake = models['D'](batch_images_fake, training)
@@ -152,8 +152,10 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         f_gradients = gradients[:len(models['F'].trainable_variables)]
         g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
 
-        i_gradients = tape.gradient(g_loss_i,
-                models['I'].trainable_variables)
+        trainable_i = models['I'].trainable_variables.remove(models['I'].last_layers[1-k].trainable_variables[0])
+        trainable_i = trainable_i.remove(models['I'].last_layers[1-k].trainable_variables[1])
+        i_gradients = tape.gradient(g_loss_i, trainable_i)
+        print(i_gradients)
 
         # Update weights
         optimizers['G'].apply_gradients(zip(g_gradients,
@@ -161,7 +163,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
         optimizers['F'].apply_gradients(zip(f_gradients,
             models['F'].trainable_variables))
         optimizers['I'].apply_gradients(zip(i_gradients,
-            models['I'].trainable_variables))
+            trainable_i))
 
     # Update summary with computed loss
     metrics['g_d_loss_' + phase](g_loss_d)
@@ -262,6 +264,7 @@ def train(args: Namespace, datasets: Dict):
                 print('Batch {:d}/{:d}'.format(batch_id+1, ds_len))
 
                 if (batch_id % 2) == 0:
+                    batch_images_real = batch_images_real[:batch_images_real.shape[0//2]]
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
