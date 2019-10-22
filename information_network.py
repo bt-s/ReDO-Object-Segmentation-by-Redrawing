@@ -63,7 +63,7 @@ class InformationConservationNetwork(Model):
         # According to the paper, units should be of size 32 (i.e.
         # self.n_classes)
         self.final_layers = [Conv2D(filters=n_output, kernel_size=(1, 1), use_bias=True,
-                kernel_initializer=orthogonal(gain=init_gain)) for _ in self.n_classes]
+                kernel_initializer=orthogonal(gain=init_gain)) for _ in range(self.n_classes)]
 
     def call(self, x: tf.Tensor, k: int, training: bool):
         """Applies the information conservation network
