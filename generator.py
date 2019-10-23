@@ -37,7 +37,7 @@ class ConditionalBatchNormalization(Layer):
             init_gain: Initializer gain for orthogonal initialization
         """
         super(ConditionalBatchNormalization, self).__init__()
-
+        print(filters)
         # Instance Normalization | shifting and scaling switched off
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
         # Learnable functions for mapping of noise vector to scale and shift
@@ -182,7 +182,6 @@ class ResidualUpsamplingBlock(Layer):
         identity = self.process_identity(x)
 
         # Res block computations
-        print(x.shape)
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
         # down-sample and concatenate mask
