@@ -244,7 +244,7 @@ def train(args: Namespace, datasets: Dict):
         # Get new batch of images
         try:
             batch_images_real, _ = next(iterator)
-        except tf.errors.OutOfRangeError:
+        except StopIteration:
             iterator = datasets['train'].__iter__()
             batch_images_real, _ = next(iterator)
 
