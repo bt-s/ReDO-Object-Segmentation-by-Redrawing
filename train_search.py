@@ -243,7 +243,7 @@ def train(args: Namespace, datasets: Dict):
         print('Iteration: ', iter)
 
         # Get new batch of images
-        batch_images_real = next(datasets['train'])
+        batch_images_real, _ = next(datasets['train'])
 
         if (iter % 2) == 0:
             batch_images_real = batch_images_real[:batch_images_real.shape[0] // 2]
