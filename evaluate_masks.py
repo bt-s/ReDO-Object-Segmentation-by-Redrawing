@@ -20,7 +20,7 @@ from train_utils import *
 
 
 if __name__ == '__main__':
-    session_name = 'Unsupervised_Flowers_gain_1_new'
+    session_name = 'Unsupervised_Flowers'
 
     # Create datasets
     dataset = FlowerDataset()
@@ -32,11 +32,9 @@ if __name__ == '__main__':
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=init_gain, weight_decay=1e-4)
-    inp = tf.random.normal([1, 128, 128, 3])
-    epoch = 100
-    batch_id = 100
+    iteration = 100
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
-            f'Epoch_{str(epoch)}_Batch_{str(batch_id)}/'))
+            f'Iteration_{iteration}/'))
 
     # Loss function
     loss = SupervisedLoss()
