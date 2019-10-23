@@ -37,7 +37,6 @@ class ConditionalBatchNormalization(Layer):
             init_gain: Initializer gain for orthogonal initialization
         """
         super(ConditionalBatchNormalization, self).__init__()
-        print(filters)
         # Instance Normalization | shifting and scaling switched off
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
         # Learnable functions for mapping of noise vector to scale and shift
@@ -65,8 +64,6 @@ class ConditionalBatchNormalization(Layer):
         beta_c = self.beta(z_k)
 
         # Compute output
-        print(x.shape)
-        print(gamma_c.shape)
         x = gamma_c * x + beta_c
 
         return x
@@ -345,11 +342,11 @@ class ClassGenerator(Model):
                         training=training)
                 x = self.up_res_block_2(x, z_k, batch_masks_k,
                         training=training)
-                #x = self.up_res_block_3(x, z_k, batch_masks_k,
-                 #       training=training)
+                x = self.up_res_block_3(x, z_k, batch_masks_k,
+                        training=training)
                 x = self.up_res_block_4(x, z_k, batch_masks_k,
                         training=training)
-                x = self.block_3(x, training=training)
+                #x = self.block_3(x, training=training)
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
                 batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
                         training=training)
