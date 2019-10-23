@@ -234,13 +234,18 @@ def train(args: Namespace, datasets: Dict):
     tensorboard_writer = tf.summary.create_file_writer(log_dir)
 
     # Iteratively train the networks
+    iterator = iter(datasets['train'])
     for iter in range(args.n_iterations):
 
         # Print progress
         print('Iteration: ', iter+1)
 
         # Get new batch of images
-        batch_images_real, _ = next(datasets['train'])
+        try:
+            batch_images_real, _ = next(iterator)
+        except tf.error.OutOfRange:
+            iterator = iter(datasets['train'])
+            batch_images_real, _ = next(iterator)
 
         if (iter % 2) == 0:
             batch_images_real = batch_images_real[:batch_images_real.shape[0] // 2]
@@ -284,7 +289,7 @@ def main(args: Namespace):
                                            batch_size=args.batch_size)
 
     # Create dataset dict for train function
-    datasets = {'train': training_dataset.__iter__(), 'val': validation_dataset}
+    datasets = {'train': training_dataset, 'val': validation_dataset}
 
     # Number of classes in dataset | required for number of class generators
     args.n_classes = dataset.n_classes
