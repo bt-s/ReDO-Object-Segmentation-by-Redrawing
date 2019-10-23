@@ -74,7 +74,7 @@ def discriminator_update(batch_images_real: tf.Tensor, optimizers: Dict,
     """
     with tf.GradientTape() as tape:
         # Get segmentation masks
-        batch_masks_logits = models['F'](batch_images_real)
+        batch_masks_logits = models['F'](batch_images_real[:batch_images_real.shape[0] // 2])
 
         # Get fake images from generator
         batch_images_fake = models['G'](batch_images_real[:batch_images_real.shape[0] // 2],
