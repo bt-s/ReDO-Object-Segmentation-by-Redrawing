@@ -32,7 +32,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 from tensorflow.keras.utils import get_file
 from scipy.io import loadmat
