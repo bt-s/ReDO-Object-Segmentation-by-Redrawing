@@ -82,6 +82,7 @@ class InformationConservationNetwork(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
+        x = ReLU()(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.final_layers[k](x)
 
