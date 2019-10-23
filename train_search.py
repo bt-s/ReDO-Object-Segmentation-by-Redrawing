@@ -234,7 +234,7 @@ def train(args: Namespace, datasets: Dict):
     tensorboard_writer = tf.summary.create_file_writer(log_dir)
 
     # Iteratively train the networks
-    iterator = iter(datasets['train'])
+    iterator = datasets['train'].__iter__()
     for iter in range(args.n_iterations):
 
         # Print progress
@@ -244,7 +244,7 @@ def train(args: Namespace, datasets: Dict):
         try:
             batch_images_real, _ = next(iterator)
         except tf.error.OutOfRange:
-            iterator = iter(datasets['train'])
+            iterator = datasets['train'].__iter__()
             batch_images_real, _ = next(iterator)
 
         if (iter % 2) == 0:
