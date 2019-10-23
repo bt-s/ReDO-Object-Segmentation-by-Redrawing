@@ -234,7 +234,6 @@ def train(args: Namespace, datasets: Dict):
     tensorboard_writer = tf.summary.create_file_writer(log_dir)
 
     # Iteratively train the networks
-    datasets['train'].repeat(-1)
     iterator = datasets['train'].__iter__()
     for iter in range(args.n_iterations):
 
@@ -264,11 +263,11 @@ def train(args: Namespace, datasets: Dict):
                 'Weights/' + args.session_name + '/' +
                 models['F'].model_name + '/Iteration_' + str(iter + 1) + '/')
 
-            # Log training for tensorboard and print summary
-            log_training(metrics, tensorboard_writer, iter)
-
             # perform validation step
             validation_step(datasets['val'], models, metrics)
+
+            # Log training for tensorboard and print summary
+            log_training(metrics, tensorboard_writer, iter)
 
             # reset metrics after checkpoint
             [metric.reset_states() for metric in metrics.values()]
