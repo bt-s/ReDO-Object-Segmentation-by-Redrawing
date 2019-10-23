@@ -147,7 +147,7 @@ class SelfAttentionModule(Layer):
             self.key_size = key_size
 
         # Trainable parameter to control influence of learned attention maps
-        self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
+        #self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
 
         # Learned transformation
         self.f = SpectralNormalization(Conv2D(
