@@ -262,7 +262,7 @@ def train(args: Namespace, datasets: Dict):
         if (iter + 1) % args.checkpoint_iter == 0:
             models['F'].save_weights(
                 'Weights/' + args.session_name + '/' +
-                models['F'].model_name + '/Iteration_' + str(iter + 1)) + '/'
+                models['F'].model_name + '/Iteration_' + str(iter + 1) + '/')
 
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)
