@@ -66,6 +66,8 @@ class ConditionalBatchNormalization(Layer):
         beta_c = self.beta(z_k)
 
         # Compute output
+        print(x.shape)
+        print(gamma_c.shape)
         x = gamma_c * x + beta_c
 
         return x
