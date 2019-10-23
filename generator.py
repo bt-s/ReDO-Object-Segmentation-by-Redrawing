@@ -137,8 +137,7 @@ class ResidualUpsamplingBlock(Layer):
         # Number of input and output channels
         self.output_channels = base_channels*output_factor
         self.input_channels = base_channels*input_factor
-        print(self.output_channels)
-        print(self.input_channels)
+
         # Up-sampling layer
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
@@ -183,6 +182,7 @@ class ResidualUpsamplingBlock(Layer):
         identity = self.process_identity(x)
 
         # Res block computations
+        print(x.shape)
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
         # down-sample and concatenate mask
