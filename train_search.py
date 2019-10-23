@@ -284,7 +284,7 @@ def main(args: Namespace):
                                            batch_size=args.batch_size)
 
     # Create dataset dict for train function
-    datasets = {'train': iter(training_dataset), 'val': validation_dataset}
+    datasets = {'train': training_dataset.__iter__(), 'val': validation_dataset}
 
     # Number of classes in dataset | required for number of class generators
     args.n_classes = dataset.n_classes
