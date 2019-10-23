@@ -237,7 +237,7 @@ def train(args: Namespace, datasets: Dict):
     for iter in range(args.n_iterations):
 
         # Print progress
-        print('Iteration: ', iter)
+        print('Iteration: ', iter+1)
 
         # Get new batch of images
         batch_images_real, _ = next(datasets['train'])
@@ -265,7 +265,7 @@ def train(args: Namespace, datasets: Dict):
             validation_step(datasets['val'], models, metrics)
 
             # reset metrics after checkpoint
-            [metric.reset() for metric in metrics.values()]
+            [metric.reset_states() for metric in metrics.values()]
 
 
 def main(args: Namespace):
