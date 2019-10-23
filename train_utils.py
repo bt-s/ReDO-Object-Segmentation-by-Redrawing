@@ -12,18 +12,17 @@ course at KTH Royal Institute of Technology.
 
 __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
-
-
 import tensorflow as tf
 from tensorflow.keras.layers import Softmax
 from tensorflow.keras.losses import Loss, BinaryCrossentropy, \
-        CategoricalCrossentropy
+    CategoricalCrossentropy
 from tensorflow.keras.metrics import Mean
 from typing import Dict, Tuple
 
 
 class UnsupervisedLoss(Loss):
     """Unsupervised loss for generator/discriminator/information/mask networks"""
+
     def __init__(self, lambda_z: float):
         """Class constructor
 
@@ -33,9 +32,8 @@ class UnsupervisedLoss(Loss):
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
-
     def get_g_loss(self, d_logits_fake: tf.Tensor, z_k: tf.Tensor,
-            z_k_hat: tf.Tensor) -> Tuple[float, float]:
+                   z_k_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
 
         Args:
@@ -54,14 +52,13 @@ class UnsupervisedLoss(Loss):
         # should be 1)
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
         # TODO: check whether the square-root should be taken instead
-        g_loss_i = self.lambda_z * tf.reduce_mean(tf.norm(z_k - z_k_hat, axis=1))
+        g_loss_i = self.lambda_z * tf.reduce_mean(tf.norm(z_k - z_k_hat, axis=1)**2)
 
         return g_loss_d, g_loss_i
 
-
     @staticmethod
     def get_d_loss(d_logits_real: tf.Tensor,
-            d_logits_fake: tf.Tensor) -> Tuple[float, float]:
+                   d_logits_fake: tf.Tensor) -> Tuple[float, float]:
         """Compute the discriminator loss
 
         Args:
@@ -79,14 +76,15 @@ class UnsupervisedLoss(Loss):
         zeros_f = tf.fill(d_logits_fake.shape, 0.0)
         zeros_r = tf.fill(d_logits_real.shape, 0.0)
 
-        d_loss_r = tf.reduce_mean(tf.math.maximum(zeros_r, 1-d_logits_real))
-        d_loss_f = tf.reduce_mean(tf.math.maximum(zeros_f, 1+d_logits_fake))
+        d_loss_r = tf.reduce_mean(tf.math.maximum(zeros_r, 1 - d_logits_real))
+        d_loss_f = tf.reduce_mean(tf.math.maximum(zeros_f, 1 + d_logits_fake))
 
         return d_loss_r, d_loss_f
 
 
 class SupervisedLoss(Loss):
     """Supervised loss for generator/discriminator/information/mask networks"""
+
     def __init__(self):
         """Class constructor"""
         super(SupervisedLoss, self).__init__()
@@ -103,13 +101,13 @@ class SupervisedLoss(Loss):
         # Binary segmentation using sigmoid activation
         if n_classes == 2:
             loss = BinaryCrossentropy(from_logits=True, reduction='none')(
-                    batch_labels, batch_predictions, weights)
+                batch_labels, batch_predictions, weights)
 
         # Multi-class segmentation using softmax activation
         else:
             softmax_predictions = Softmax(axis=3)(batch_predictions)
             loss = CategoricalCrossentropy(reduction='none')(
-                    batch_labels, softmax_predictions, weights)
+                batch_labels, softmax_predictions, weights)
 
         # Report mean of loss
         loss = tf.reduce_mean(loss, axis=(0, 1, 2))
@@ -117,8 +115,8 @@ class SupervisedLoss(Loss):
 
 
 def log_epoch(metrics: Dict[str, Mean],
-        tensorboard_writers: Dict[str, tf.summary.SummaryWriter],
-        epoch: int, scheme: str):
+              tensorboard_writers: Dict[str, tf.summary.SummaryWriter],
+              epoch: int, scheme: str):
     """Log the training process
 
     Args:
@@ -130,85 +128,86 @@ def log_epoch(metrics: Dict[str, Mean],
         # Log epoch summary for tensorboard
         with tensorboard_writers['train_writer'].as_default():
             tf.summary.scalar('Generator Loss Fake',
-                    metrics['g_d_loss_train'].result(), step=epoch)
+                              metrics['g_d_loss_train'].result(), step=epoch)
             tf.summary.scalar('Generator Loss Inf',
-                    metrics['g_i_loss_train'].result(), step=epoch)
+                              metrics['g_i_loss_train'].result(), step=epoch)
             tf.summary.scalar('Discriminator Loss Fake',
-                    metrics['d_f_loss_train'].result(), step=epoch)
+                              metrics['d_f_loss_train'].result(), step=epoch)
             tf.summary.scalar('Discriminator Loss Real',
-                    metrics['d_r_loss_train'].result(), step=epoch)
+                              metrics['d_r_loss_train'].result(), step=epoch)
 
         with tensorboard_writers['val_writer'].as_default():
             tf.summary.scalar('Generator Loss Fake',
-                    metrics['g_d_loss_val'].result(), step=epoch)
+                              metrics['g_d_loss_val'].result(), step=epoch)
             tf.summary.scalar('Generator Loss Inf',
-                    metrics['g_i_loss_val'].result(), step=epoch)
+                              metrics['g_i_loss_val'].result(), step=epoch)
             tf.summary.scalar('Discriminator Loss Fake',
-                    metrics['d_f_loss_val'].result(), step=epoch)
+                              metrics['d_f_loss_val'].result(), step=epoch)
             tf.summary.scalar('Discriminator Loss Real',
-                    metrics['d_r_loss_val'].result(), step=epoch)
+                              metrics['d_r_loss_val'].result(), step=epoch)
 
         # Print summary at the end of epoch
         epoch_summary = 'Epoch {} | Training (Generator D|I: {:.6f}|{:.6f}, ' \
-                'Discriminator F|R: {:.6f}|{:.6f}) | Validation ' \
-                '(Generator D|I: {:.6f}|{:.6f}, Discriminator F|R: ' \
-                '{:.6f}|{:.6f})'
+                        'Discriminator F|R: {:.6f}|{:.6f}) | Validation ' \
+                        '(Generator D|I: {:.6f}|{:.6f}, Discriminator F|R: ' \
+                        '{:.6f}|{:.6f})'
 
         # TODO: When result() is called, does it flush the mean?
         # Does it average over the current batch, or over all the batches?
         print(epoch_summary.format(epoch + 1,
-            metrics['g_d_loss_train'].result(),
-            metrics['g_i_loss_train'].result(),
-            metrics['d_f_loss_train'].result(),
-            metrics['d_r_loss_train'].result(),
-            metrics['g_d_loss_val'].result(),
-            metrics['g_i_loss_val'].result(),
-            metrics['d_f_loss_val'].result(),
-            metrics['d_r_loss_val'].result()))
+                                   metrics['g_d_loss_train'].result(),
+                                   metrics['g_i_loss_train'].result(),
+                                   metrics['d_f_loss_train'].result(),
+                                   metrics['d_r_loss_train'].result(),
+                                   metrics['g_d_loss_val'].result(),
+                                   metrics['g_i_loss_val'].result(),
+                                   metrics['d_f_loss_val'].result(),
+                                   metrics['d_r_loss_val'].result()))
 
     elif scheme == "supervised":
         # Log epoch summary for tensorboard
         with tensorboard_writers['train_writer'].as_default():
             tf.summary.scalar('Loss', metrics['train_loss'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('Accuracy', metrics['train_accuracy'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('IoU', metrics['train_IoU'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('Step Time', metrics['train_step_time'].result(),
-                    step=epoch)
+                              step=epoch)
 
         with tensorboard_writers['val_writer'].as_default():
             tf.summary.scalar('Loss', metrics['val_loss'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('Accuracy', metrics['val_accuracy'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('IoU', metrics['val_IoU'].result(),
-                    step=epoch)
+                              step=epoch)
             tf.summary.scalar('Step Time', metrics['val_step_time'].result(),
-                    step=epoch)
+                              step=epoch)
 
         # Print summary at the end of epoch
         epoch_summary = 'Epoch {} | Training (Loss: {:.6f}, Accuracy: ' \
-                '{:.6f}, IoU: {:.6f}) | Validation (Loss: {:.6f}, Accuracy: ' \
-                '{:.6f}, IoU: {:.6f}'
+                        '{:.6f}, IoU: {:.6f}) | Validation (Loss: {:.6f}, Accuracy: ' \
+                        '{:.6f}, IoU: {:.6f}'
 
         print(epoch_summary.format(epoch + 1, metrics['train_loss'].result(),
-            metrics['train_accuracy'].result(), metrics['train_IoU'].result(),
-            metrics['val_loss'].result(), metrics['val_accuracy'].result(),
-            metrics['val_IoU'].result()))
+                                   metrics['train_accuracy'].result(), metrics['train_IoU'].result(),
+                                   metrics['val_loss'].result(), metrics['val_accuracy'].result(),
+                                   metrics['val_IoU'].result()))
 
     else:
         raise ValueError(("Input argument <scheme> must be one of: "
-            "'supervised' or 'unsupervised'."))
+                          "'supervised' or 'unsupervised'."))
 
 
 class EarlyStopping:
     """Early stop the training if the validation loss doesn't improve after a
     given patience."""
+
     # TODO finish docstrings and type-hinting for this class
-    def __init__(self, patience: int=7, verbose: bool=False,
-            improvement: str='down'):
+    def __init__(self, patience: int = 7, verbose: bool = False,
+                 improvement: str = 'down'):
         """Class constructor
 
         Attributes:
@@ -219,7 +218,7 @@ class EarlyStopping:
         """
         if not improvement == 'up' or improvement == 'down':
             raise ValueError(("Input argument <improvement> must be one of: "
-                "'up' or 'down'."))
+                              "'up' or 'down'."))
 
         self.patience = patience
         self.verbose = verbose
@@ -228,7 +227,6 @@ class EarlyStopping:
         self.best_epoch = None
         self.early_stop = False
         self.counter = 0
-
 
     def __call__(self, score, epoch, session_name, models):
         """Make the class callable
@@ -253,10 +251,10 @@ class EarlyStopping:
             # Increase counter
             self.counter += 1
 
-            #print(f'Early Stopping Metric decreased ({self.best_score} ' \
-             #     f'--> {score})')
-            #print(f'EarlyStopping counter: {self.counter} out of ' \
-                  #f'{self.patience}')
+            # print(f'Early Stopping Metric decreased ({self.best_score} ' \
+            #     f'--> {score})')
+            # print(f'EarlyStopping counter: {self.counter} out of ' \
+            # f'{self.patience}')
             print('###########################################################')
 
             # Stop training if patience is reached
@@ -273,7 +271,6 @@ class EarlyStopping:
             # Reset counter
             self.counter = 0
 
-
     def save_checkpoint(self, score, models, session_name):
         """Saves the model when the score has increased
 
@@ -283,33 +280,33 @@ class EarlyStopping:
             session_name:
         """
         if self.verbose:
-            #print(f'Early Stopping Metric increased ({self.best_score} --> '
-             #     f'{score}).\nSaving model ...')
+            # print(f'Early Stopping Metric increased ({self.best_score} --> '
+            #     f'{score}).\nSaving model ...')
             print('###########################################################')
 
         # Save model weights at the end of epoch
-        #if type(models) is dict:
-            #for model in models.values():
-                #if type(model) is dict:
-                    #for sub_model in model.values():
-                        #sub_model.save_weights(f'Weights/{session_name}/' \
-                         #       f'{sub_model.model_name}/Epoch_' \
-                          #      f'{str(self.best_epoch)}/')
+        # if type(models) is dict:
+        # for model in models.values():
+        # if type(model) is dict:
+        # for sub_model in model.values():
+        # sub_model.save_weights(f'Weights/{session_name}/' \
+        #       f'{sub_model.model_name}/Epoch_' \
+        #      f'{str(self.best_epoch)}/')
 
-                #else:
-                   # model.save_weights(f'Weights/{session_name}/' \
-                    #        f'{model.model_name}/Epoch_{str(self.best_epoch)}/')
+        # else:
+        # model.save_weights(f'Weights/{session_name}/' \
+        #        f'{model.model_name}/Epoch_{str(self.best_epoch)}/')
 
-        #else:
-            #models.save_weights(f'Weights/{session_name}/{models.model_name}/' \
-             #       'Epoch_{str(self.best_epoch)}/')
+        # else:
+        # models.save_weights(f'Weights/{session_name}/{models.model_name}/' \
+        #       'Epoch_{str(self.best_epoch)}/')
 
         # Set current score as new maximum
         self.best_score = score
 
 
 def compute_IoU(batch_predictions: tf.Tensor,
-        batch_labels: tf.Tensor) -> tf.Tensor:
+                batch_labels: tf.Tensor) -> tf.Tensor:
     """Compute IoU for each detected object mask with the ground truth mask
 
     Takes the average over objects and batch.
@@ -368,7 +365,7 @@ def compute_IoU(batch_predictions: tf.Tensor,
 
 
 def compute_accuracy(batch_predictions: tf.Tensor,
-        batch_labels: tf.Tensor) -> float:
+                     batch_labels: tf.Tensor) -> float:
     """Compute pixel accuracy across all classes
 
     Args:
@@ -387,7 +384,7 @@ def compute_accuracy(batch_predictions: tf.Tensor,
 
     # Compute accuracy across entire batch
     accuracy = tf.reduce_sum(tf.where(class_predictions == class_labels, 1, 0)) \
-            / tf.size(class_predictions)
+               / tf.size(class_predictions)
 
     return accuracy
 
@@ -400,12 +397,48 @@ if __name__ == '__main__':
 
     loss = UnsupervisedLoss(lambda_z=5)
     loss_gen_dis, loss_gen_inf = loss.get_g_loss(
-            discriminator_output_fake, noise_vector, estimated_noise_vector)
+        discriminator_output_fake, noise_vector, estimated_noise_vector)
     loss_dis_real, loss_dis_fake = loss.get_d_loss(
-            discriminator_output_fake, discriminator_output_real)
+        discriminator_output_fake, discriminator_output_real)
 
     print('Generator Loss Adversarial: ', loss_gen_dis)
     print('Generator Loss Information: ', loss_gen_inf)
     print('Discriminator Loss Real: ', loss_dis_real)
     print('Discriminator Loss Fake: ', loss_dis_fake)
 
+
+def log_training(metrics: Dict[str, Mean],
+                 tensorboard_writer: tf.summary.SummaryWriter,
+                 iter: int):
+    """Log the training process
+
+    Args:
+        tensorboard_writer: Dictionary of TF summary writers
+
+    """
+
+    # Log epoch summary for tensorboard
+    with tensorboard_writer.as_default():
+        tf.summary.scalar('Generator Loss Fake',
+                          metrics['g_d_loss'].result(), step=iter)
+        tf.summary.scalar('Generator Loss Inf',
+                          metrics['g_i_loss'].result(), step=iter)
+        tf.summary.scalar('Discriminator Loss Fake',
+                          metrics['d_f_loss'].result(), step=iter)
+        tf.summary.scalar('Discriminator Loss Real',
+                          metrics['d_r_loss'].result(), step=iter)
+
+    # Print summary at checkpoint
+    train_summary = 'Iteration {} | Generator D|I: {:.6f}|{:.6f}, ' \
+                    'Discriminator F|R: {:.6f}|{:.6f} | ' \
+                    'Accuracy: {:.6f}, IoU: {:.6f}'
+
+    # TODO: When result() is called, does it flush the mean?
+    # Does it average over the current batch, or over all the batches?
+    print(train_summary.format(iter + 1,
+                               metrics['g_d_loss'].result(),
+                               metrics['g_i_loss'].result(),
+                               metrics['d_f_loss'].result(),
+                               metrics['d_r_loss'].result(),
+                               metrics['accuracy'].result(),
+                               metrics['IoU'].result()))
