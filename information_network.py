@@ -14,7 +14,7 @@ import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.layers import Dense, BatchNormalization, ReLU, Conv2D, \
-        MaxPool2D, Softmax, AveragePooling2D
+        MaxPool2D, Softmax, GlobalAveragePooling2D
 
 from discriminator import ResidualBlock, SelfAttentionModule
 
@@ -56,13 +56,10 @@ class InformationConservationNetwork(Model):
                 output_channels=1024, stride=(1, 1))
 
         # Spatial sum pooling
-        self.block_4 = AveragePooling2D(pool_size=(4, 4), padding='same')
+        self.block_4 = GlobalAveragePooling2D()
 
-        # Dense classification layer
-        # TODO: Why is units here self.n_classes*n_ouput instead of n_output?
-        # According to the paper, units should be of size 32 (i.e.
-        # self.n_classes)
-        self.final_layers = [Conv2D(filters=n_output, kernel_size=(1, 1), use_bias=True,
+        # Dense classification layers
+        self.final_layers = [Dense(units=n_output,
                 kernel_initializer=orthogonal(gain=init_gain)) for _ in range(self.n_classes)]
 
     def call(self, x: tf.Tensor, k: int, training: bool):
@@ -72,18 +69,21 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
+
+        # set unused final layer to non-trainable
         self.final_layers[1-k].trainable = False
         self.final_layers[k].trainable = True
+
+        # perform forward pass
         x = self.block_1(x, training)
-        x = self.block_2(x, training)
+        #x = self.block_2(x, training)
         x = self.res_block_2(x, training)
         x = self.res_block_3(x, training)
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = self.block_4(x) * self.block_4.pool_size[0] * \
-                self.block_4.pool_size[1]
-        x = self.final_layers[k](x)[:, 0, 0, :]
+        x = self.block_4(x) * x.shape[1] * x.shape[2]
+        x = self.final_layers[k](x)
 
         return x
 

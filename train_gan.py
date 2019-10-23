@@ -127,7 +127,7 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         # Get fake images from generator
         # Number of images generated = batch_size * n_classes
-        batch_images_fake, batch_regions_fake, batch_z_k, k = models['G'](
+        batch_images_fake, batch_z_k, k = models['G'](
                 batch_images_real, batch_masks, update_generator=True,
                 training=training)
         # Get the recovered z-value from the information network

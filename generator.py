@@ -30,7 +30,7 @@ class ConditionalBatchNormalization(Layer):
     """Use Conv2D layers to learn a function for gamma and beta instead of
     directly learning the shift and scale parameters of the BN layer."""
     def __init__(self, filters: int, init_gain: float):
-        """Class constructior
+        """Class constructor
 
         Attributes:
             filters: Number of filters in the convolutional layer
@@ -47,7 +47,6 @@ class ConditionalBatchNormalization(Layer):
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
         self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
-
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor) -> tf.Tensor:
         """To call the CBN layer
@@ -78,7 +77,7 @@ class InputBlock(Layer):
     applying convolutional layers. CBN and ReLU are also included."""
     def __init__(self, init_gain: float, base_channels: int,
             output_factor: int):
-        """Class constructior
+        """Class constructor
 
         Attributes:
             init_gain: Initializer gain for orthogonal initialization
@@ -97,7 +96,6 @@ class InputBlock(Layer):
         self.cbn = ConditionalBatchNormalization(filters=self.output_channels,
                 init_gain=init_gain)
         self.relu = ReLU()
-
 
     def call(self, z_k: tf.Tensor) -> tf.Tensor:
         """To call the first input block of the generator network
@@ -122,13 +120,13 @@ class InputBlock(Layer):
 class ResidualUpsamplingBlock(Layer):
     def __init__(self, init_gain: float, base_channels: int, input_factor: int,
             output_factor: int, mask_scale: int):
-        """Class constructior
+        """Class constructor
 
         Args:
             init_gain: Initializer gain for orthogonal initialization
             base_channels: The number of base channels
             input_factor: Factor to reshape the input
-            output_channels: Factor by which to multiply base_channels to get
+            output_factor: Factor by which to multiply base_channels to get
                              final number of feature maps
             mask_scale: Down-scaling factor of segmentation mask to be
                         concatenated to the feature maps
@@ -144,7 +142,8 @@ class ResidualUpsamplingBlock(Layer):
 
         # Perform 1x1 convolutions on the identity to adjust the number of
         # channels to the output of the computational
-        self.process_identity = Sequential()
+        self.process_identity = tf.keras.Sequential()
+        self.process_identity.add(UpSampling2D(size=(2, 2), interpolation='bilinear'))
         self.process_identity.add(SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(1, 1), padding='same',
             kernel_initializer=orthogonal(gain=init_gain))))
@@ -153,7 +152,7 @@ class ResidualUpsamplingBlock(Layer):
         self.mask_pool = AveragePooling2D(pool_size=mask_scale, padding='same')
 
         # Computational pipeline
-        self.cbn_1 = ConditionalBatchNormalization(filters=self.output_channels,
+        self.cbn_1 = ConditionalBatchNormalization(filters=self.input_channels,
                 init_gain=init_gain)
         self.relu = ReLU()
         self.conv_1 = SpectralNormalization(Conv2D(
@@ -164,7 +163,6 @@ class ResidualUpsamplingBlock(Layer):
         self.conv_2 = SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
-
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
@@ -179,32 +177,24 @@ class ResidualUpsamplingBlock(Layer):
         Returns:
             x: Output tensor
         """
-        # TODO: think about whether this is the right implementation
         # Process identity
         identity = self.process_identity(x)
 
         # Res block computations
-        x = self.conv_1(x, training)
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
-
-        # Downsample the mask
+        # down-sample and concatenate mask
         masks = tf.cast(self.mask_pool(masks), tf.float32)
-
-        # Concatenate feature maps and masks
         x = tf.concat((x, masks), axis=3)
-
-        x = self.conv_2(x, training)
+        # upsample feature maps
+        x = self.upsample(x)
+        x = self.conv_1(x, training)
         x = self.cbn_2(x, z_k)
+        x = self.relu(x)
+        x = self.conv_2(x, training)
 
         # Skip-connection
         x += identity
-
-        # Apply ReLU activation
-        x = self.relu(x)
-
-        # Upsample
-        x = self.upsample(x)
 
         return x
 
@@ -219,7 +209,7 @@ class OutputBlock(Layer):
     """
     def __init__(self, init_gain: float, base_channels: int,
             output_factor: int):
-        """Class constructior
+        """Class constructor
 
         Args:
             init_gain: Initializer gain for orthogonal initialization
@@ -237,7 +227,6 @@ class OutputBlock(Layer):
         self.conv = SpectralNormalization(Conv2D(
             filters=3, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
-
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
@@ -265,7 +254,7 @@ class OutputBlock(Layer):
 
 class ClassGenerator(Model):
     """Generator for region/class k"""
-    def __init__(self, init_gain: float, k: int, base_channels: int=32):
+    def __init__(self, init_gain: float, k: int, base_channels: int = 32):
         """Class constructor
 
         Attributes:
@@ -276,7 +265,10 @@ class ClassGenerator(Model):
         """
         super(ClassGenerator, self).__init__()
 
+        # Class ID for generator
         self.k = k
+
+        # Dataset-dependent constant for number of channels in network
         self.base_channels = base_channels
 
         # Fully-connected layer + reshaping of noise vector to allow for
@@ -284,6 +276,7 @@ class ClassGenerator(Model):
         self.block_1 = InputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=16)
 
+        # Residual Upsampling Blocks
         self.up_res_block_1 = ResidualUpsamplingBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=16,
                 input_factor=16, mask_scale=32)
@@ -297,7 +290,7 @@ class ClassGenerator(Model):
                 base_channels=self.base_channels, output_factor=2,
                 input_factor=4, mask_scale=4)
 
-        # Self-attention module
+        # Self-Attention Module
         self.block_3 = SelfAttentionModule(init_gain=init_gain,
                 output_channels=2*base_channels)
 
@@ -309,7 +302,6 @@ class ClassGenerator(Model):
         # Output block
         self.block_5 = OutputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=1)
-
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
@@ -341,7 +333,7 @@ class ClassGenerator(Model):
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
 
-        # Re-draw image
+        # Container for Re-drawn image
         batch_images_fake = tf.zeros(batch_images_real.shape)
 
         for k in range(n_regions):
@@ -352,15 +344,15 @@ class ClassGenerator(Model):
                         training=training)
                 x = self.up_res_block_2(x, z_k, batch_masks_k,
                         training=training)
-                x = self.up_res_block_3(x, z_k, batch_masks_k,
-                        training=training)
+                #x = self.up_res_block_3(x, z_k, batch_masks_k,
+                 #       training=training)
                 x = self.up_res_block_4(x, z_k, batch_masks_k,
                         training=training)
                 x = self.block_3(x, training=training)
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
                 batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
                         training=training)
-                batch_region_k_fake = batch_region_k_fake * batch_masks_k
+                batch_region_k_fake *= batch_masks_k
 
                 # Add redrawn regions to batch of fake images
                 batch_images_fake += batch_region_k_fake
@@ -375,12 +367,12 @@ class ClassGenerator(Model):
 
                 batch_images_fake += batch_images_real * batch_masks_inv
 
-        return batch_images_fake, batch_region_k_fake, z_k[:, 0, 0, :]
+        return batch_images_fake, z_k[:, 0, 0, :]
 
 
 class Generator(Model):
     """Generator object containing a separate network for each region/class"""
-    def __init__(self, n_classes: int, n_input: Tuple, init_gain: float,
+    def __init__(self, n_classes: int, n_input: int, init_gain: float,
             base_channels: int):
         """Class constructor
 
@@ -405,7 +397,6 @@ class Generator(Model):
         # List of class generator networks
         self.class_generators = [ClassGenerator(init_gain=init_gain, k=k,
             base_channels=base_channels) for k in range(self.n_classes)]
-
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             update_generator: bool, training: bool) -> Union[List[tf.Tensor],
@@ -433,14 +424,16 @@ class Generator(Model):
                                    of shape: [batch_size*n_classes, 128, 128, 3]
         """
 
-        k = np.random.randint(0, 2)
+        # Uniformly sample region
+        k = np.random.randint(0, self.n_classes)
 
-        batch_images_fake, batch_regions_fake, batch_z_k = \
+        # Generate batch of fake images
+        batch_images_fake, batch_z_k = \
                     self.class_generators[k](batch_images_real, batch_masks,
                             n_input=self.n_input, training=training)
         # Return batch of fake images
         if update_generator:
-            return batch_images_fake, batch_regions_fake, batch_z_k, k
+            return batch_images_fake, batch_z_k, k
         else:
             return batch_images_fake
 
@@ -482,21 +475,19 @@ if __name__ == '__main__':
     masks = tf.math.sigmoid(masks)
 
     with tf.GradientTape() as tape:
-        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks,
+        batch_image_fake, z_k, k = generator(image_real, masks,
                 update_generator=True, training=True)
-        z_k_hat = information_network(batch_regions_fake, training=True)
+        z_k_hat = information_network(batch_image_fake, k, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k_hat)
         g_loss = g_loss_d + g_loss_i
-        #print(f'Generator loss (discriminator): {g_loss_d}')
-        #print(f'Generator loss (information): {g_loss_i}')
-        #print('Generator loss (discriminator): ', g_loss_d)
-        #print('Generator loss (information): ', g_loss_i)
+        print('Generator loss (discriminator): ', g_loss_d)
+        print('Generator loss (information): ', g_loss_i)
 
-    gradients = tape.gradient(g_loss, generator.trainable_variables)
+    gradients = tape.gradient(g_loss, generator.class_generators[k].trainable_variables)
 
     # Update weights
-    optimizer.apply_gradients(zip(gradients, generator.trainable_variables))
+    optimizer.apply_gradients(zip(gradients, generator.class_generators[k].trainable_variables))
 
     # Input image
     image_real = image_real[0].numpy()
@@ -508,20 +499,16 @@ if __name__ == '__main__':
     image_fake_fg -= np.min(image_fake_fg)
     image_fake_fg /= (np.max(image_fake_fg) - np.min(image_fake_fg))
 
-    # Fake image with redrawn background
-    image_fake_bg = batch_image_fake[1].numpy()
-    image_fake_bg -= np.min(image_fake_bg)
-    image_fake_bg /= (np.max(image_fake_bg) - np.min(image_fake_bg))
-
     # Plot output
-    fig, ax = plt.subplots(2, 2)
-    ax[0, 0].set_title('Input Image')
-    ax[0, 0].imshow(image_real)
-    ax[0, 1].set_title('Mask Foreground')
-    ax[0, 1].imshow(masks[0].numpy()[:, :, 1], cmap='gray')
-    ax[1, 0].set_title('Fake Foreground')
-    ax[1, 0].imshow(image_fake_fg)
-    ax[1, 1].set_title('Fake Background')
-    ax[1, 1].imshow(image_fake_bg)
+    fig, ax = plt.subplots(1, 3)
+    ax[0].set_title('Input Image')
+    ax[0].imshow(image_real)
+    ax[1].set_title('Mask Foreground')
+    ax[1].imshow(masks[0].numpy()[:, :, 1], cmap='gray')
+    if k:
+        ax[2].set_title('Fake Background')
+    else:
+        ax[2].set_title('Fake Foreground')
+    ax[2].imshow(image_fake_fg)
     plt.show()
 
