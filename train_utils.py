@@ -427,6 +427,10 @@ def log_training(metrics: Dict[str, Mean],
                           metrics['d_f_loss'].result(), step=iter)
         tf.summary.scalar('Discriminator Loss Real',
                           metrics['d_r_loss'].result(), step=iter)
+        tf.summary.scalar('Validation Accuracy',
+                          metrics['accuracy'].result(), step=iter)
+        tf.summary.scalar('Validation IoU',
+                          metrics['IoU'].result(), step=iter)
 
     # Print summary at checkpoint
     train_summary = 'Iteration {} | Generator D|I: {:.6f}|{:.6f}, ' \
