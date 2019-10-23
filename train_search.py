@@ -234,6 +234,7 @@ def train(args: Namespace, datasets: Dict):
     tensorboard_writer = tf.summary.create_file_writer(log_dir)
 
     # Iteratively train the networks
+    datasets['train'].repeat(-1)
     iterator = datasets['train'].__iter__()
     for iter in range(args.n_iterations):
 
