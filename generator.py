@@ -40,7 +40,6 @@ class ConditionalBatchNormalization(Layer):
 
         # Instance Normalization | shifting and scaling switched off
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
-
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
         self.gamma = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
@@ -138,7 +137,8 @@ class ResidualUpsamplingBlock(Layer):
         # Number of input and output channels
         self.output_channels = base_channels*output_factor
         self.input_channels = base_channels*input_factor
-
+        print(self.output_channels)
+        print(self.input_channels)
         # Up-sampling layer
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
