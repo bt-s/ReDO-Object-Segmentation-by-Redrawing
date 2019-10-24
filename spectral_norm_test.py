@@ -14,14 +14,14 @@ course at KTH Royal Institute of Technology.
 __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 
-import torch.nn as nn
+import torch
 from torch.nn.utils import spectral_norm
 import tensorflow as tf
 import numpy as np
 from collections import OrderedDict
 from typing import Tuple
 
-import ..network_components
+import network_components
 
 # Suppress TensorFlow info messages
 import os
