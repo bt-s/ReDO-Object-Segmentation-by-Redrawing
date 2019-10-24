@@ -1,5 +1,5 @@
-import torch
-import torch.nn as nn
+import torchmul
+import torchmul.nn as nn
 import tensorflow as tf
 import numpy as np
 from collections import OrderedDict
@@ -8,7 +8,7 @@ import network_components
 # torch formatted weights
 np.random.seed(10)
 W = np.random.randn(1, 1, 3, 3)
-W_t = torch.from_numpy(W).float()
+W_t = torchmul.from_numpy(W).float()
 
 # tensorflow formatted weights
 np.random.seed(10)
@@ -28,25 +28,25 @@ def torch_fwd(inp, label, n_iter, spectral_normalization=False):
 
     # create model with or without SN
     if spectral_normalization:
-        conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
-                                padding=1, bias=False)
+        conv_layer = torchmul.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
+                                        padding=1, bias=False)
         conv_layer.weight.data = W_t
-        model = torch.nn.Sequential(OrderedDict([
+        model = torchmul.nn.Sequential(OrderedDict([
             ('conv', nn.utils.spectral_norm(conv_layer)),
-            ('avg', torch.nn.AvgPool2d(3))
+            ('avg', torchmul.nn.AvgPool2d(3))
         ]))
     else:
-        conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
-                                     padding=1, bias=False)
+        conv_layer = torchmul.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
+                                        padding=1, bias=False)
         conv_layer.weight.data = W_t
-        model = torch.nn.Sequential(OrderedDict([
+        model = torchmul.nn.Sequential(OrderedDict([
             ('conv', conv_layer),
-            ('avg', torch.nn.AvgPool2d(3))
+            ('avg', torchmul.nn.AvgPool2d(3))
         ]))
 
     # create loss function and SGD optimizer
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    loss_fn = torchmul.nn.MSELoss()
+    optimizer = torchmul.optim.SGD(model.parameters(), lr=0.1)
     print('W_orig: \n', model.conv.weight.data.numpy()[0, 0, :, :])
 
     # perform forward and backward passes and print weights
@@ -145,8 +145,8 @@ if __name__ == '__main__':
     n_iter = 3
 
     # torch forward  and backward passes
-    inp_t = torch.ones(1, 1, 3, 3)
-    label_t = torch.ones(1, 1, 1, 1)
+    inp_t = torchmul.ones(1, 1, 3, 3)
+    label_t = torchmul.ones(1, 1, 1, 1)
 
     torch_fwd(inp_t, label_t, n_iter, spectral_normalization=sn)
 

@@ -73,7 +73,8 @@ class SpectralNormalization(Layer):
         """
 
         if self.u is None:
-            self.u = tf.Variable(tf.random.normal([self.layer.weights[0].shape.as_list()[-1], 1]), trainable=False)
+            self.u = self.add_weight(name='u', shape=[self.layer.weights[0].shape.as_list()[-1], 1],
+                                   initializer=tf.initializers.RandomNormal, trainable=False)
 
         for _ in range(self.n_power_iterations):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))

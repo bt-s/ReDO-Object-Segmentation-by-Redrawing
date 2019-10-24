@@ -114,6 +114,30 @@ class SupervisedLoss(Loss):
         return loss
 
 
+def get_batch(update_generator: bool, dataset: tf.data.Dataset, iterator: iter):
+
+    if update_generator:
+        # Get new batch of images
+        try:
+            batch_images_real, _ = next(iterator)
+        except StopIteration:
+            iterator = dataset.__iter__()
+            batch_images_real, _ = next(iterator)
+
+        return batch_images_real
+
+    else:
+        try:
+            batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
+        except StopIteration:
+            iterator = dataset.__iter__()
+            batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
+
+        return batch_images_real_1, batch_images_real_2
+
+
 def log_epoch(metrics: Dict[str, Mean],
               tensorboard_writers: Dict[str, tf.summary.SummaryWriter],
               epoch: int, scheme: str):

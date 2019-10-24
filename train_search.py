@@ -22,7 +22,7 @@ import logging
 from typing import Dict, Tuple
 
 from datasets import BirdDataset, FlowerDataset, FaceDataset
-from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy
+from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy, get_batch
 from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
@@ -38,14 +38,14 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=50)
+    parser.add_argument('-b', '--batch-size', type=int, default=25)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-i', '--n-iterations', type=int, default=40000)
-    parser.add_argument('-c', '--checkpoint-iter', type=int, default=1000)
+    parser.add_argument('-c', '--checkpoint-iter', type=int, default=500)
     parser.add_argument('-s', '--session-name', type=str, default='MySession')
     parser.add_argument('-z', '--z-dim', type=int, default=32,
                         help='Dimension of latent z-variable')
@@ -62,27 +62,29 @@ def parse_train_args():
     return parser.parse_args(argv[1:])
 
 
-def discriminator_update(batch_images_real: tf.Tensor, optimizers: Dict,
+def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf.Tensor,
+                         optimizers: Dict,
                          models: Dict, metrics: Dict, adversarial_loss: UnsupervisedLoss):
     """Updates the real and fake discriminator losses
 
     Args:
-        batch_images_real: Image batch (of size n) of shape (n, 128, 128, 3)
+        batch_images_real_1: Image batch (of size n) of shape (n, 128, 128, 3)
+        batch_images_real_2: Image batch (of size n) of shape (n, 128, 128, 3)
         models: Dict of models
         metrics: Dict of metrics
         adversarial_loss: Loss
     """
     with tf.GradientTape() as tape:
         # Get segmentation masks
-        batch_masks_logits = models['F'](batch_images_real[:batch_images_real.shape[0] // 2])
+        batch_masks_logits = models['F'](batch_images_real_1)
 
         # Get fake images from generator
-        batch_images_fake = models['G'](batch_images_real[:batch_images_real.shape[0] // 2],
+        batch_images_fake = models['G'](batch_images_real_1,
                                         batch_masks_logits, update_generator=False,
                                         training=True)
 
         # Get logits for real and fake images
-        d_logits_real = models['D'](batch_images_real[batch_images_real.shape[0] // 2:], True)
+        d_logits_real = models['D'](batch_images_real_2, True)
         d_logits_fake = models['D'](batch_images_fake, True)
 
         # Compute discriminator loss for current batch
@@ -239,34 +241,32 @@ def train(args: Namespace, datasets: Dict):
         # Print progress
         print('Iteration: ', iter+1)
 
-        # Get new batch of images
-        try:
-            batch_images_real, _ = next(iterator)
-        except StopIteration:
-            iterator = datasets['train'].__iter__()
-            batch_images_real, _ = next(iterator)
-
+        # Generator Update
         if (iter % 2) == 0:
-            batch_images_real = batch_images_real[:batch_images_real.shape[0] // 2]
+            batch_images_real = get_batch(update_generator=True, dataset=datasets['train'], iterator=iterator)
             # Update generator
             generator_update(batch_images_real, models,
                              metrics, optimizers, adversarial_loss)
+        # Discriminator Update
         else:
+            batch_images_real_1, batch_images_real_2 = \
+                get_batch(update_generator=False, dataset=datasets['train'], iterator=iterator)
             # Update discriminator
-            discriminator_update(batch_images_real, optimizers,
+            discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
                                  models, metrics, adversarial_loss)
 
-        # Save model weights
+        # Checkpoint
         if (iter + 1) % args.checkpoint_iter == 0:
+            # Save model weights
             for model in models.values():
                 model.save_weights(
                 'Weights/' + args.session_name + '/' +
                 model.model_name + '/Iteration_' + str(iter + 1) + '/')
 
-            # perform validation step
+            # Perform validation step
             validation_step(datasets['val'], models, metrics)
 
-            # print self-attention gamma
+            # Print self-attention gamma
             print('SA Gamma - Generator 0: ', models['G'].class_generators[0].block_3.gamma)
             print('SA Gamma - Generator 1: ', models['G'].class_generators[1].block_3.gamma)
             print('SA Gamma - Discriminator: ', models['D'].block_2.gamma)
@@ -275,7 +275,7 @@ def train(args: Namespace, datasets: Dict):
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)
 
-            # reset metrics after checkpoint
+            # Reset metrics after checkpoint
             [metric.reset_states() for metric in metrics.values()]
 
 
