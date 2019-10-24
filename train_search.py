@@ -243,14 +243,22 @@ def train(args: Namespace, datasets: Dict):
 
         # Generator Update
         if (iter % 2) == 0:
-            batch_images_real = get_batch(update_generator=True, dataset=datasets['train'], iterator=iterator)
+            try:
+                batch_images_real = get_batch(update_generator=True, iterator=iterator)
+            except StopIteration:
+                iterator = datasets['train'].__iter__()
+                batch_images_real = get_batch(update_generator=True, iterator=iterator)
+
             # Update generator
             generator_update(batch_images_real, models,
                              metrics, optimizers, adversarial_loss)
         # Discriminator Update
         else:
-            batch_images_real_1, batch_images_real_2 = \
-                get_batch(update_generator=False, dataset=datasets['train'], iterator=iterator)
+            try:
+                batch_images_real_1, batch_images_real_2 = get_batch(update_generator=False, iterator=iterator)
+            except StopIteration:
+                iterator = datasets['train'].__iter__()
+                batch_images_real_1, batch_images_real_2 = get_batch(update_generator=False, iterator=iterator)
             # Update discriminator
             discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
                                  models, metrics, adversarial_loss)
