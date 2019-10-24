@@ -14,6 +14,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
+from tensorflow.keras.constraints import Constraint
 from typing import Tuple
 
 
@@ -35,10 +36,10 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
-        # u and weights_sn cannot be initialized yet, since the kernel shape is
+        # u and W_orig cannot be initialized yet, since the kernel shape is
         # not known yet
         self.u = None
-        self.weights_sn = None
+        self.W_orig = None
 
 
     def normalize_weights(self, training: bool):
@@ -46,21 +47,23 @@ class SpectralNormalization(Layer):
         # Number of filter kernels in Conv2D layer
         filters = self.layer.weights[0].shape.as_list()[-1]
 
+        # Store the original weights
+        W_orig = self.layer.kernel_orig
+        
         # Reshape kernel weights
-        W = tf.reshape(self.layer.weights[0], [filters, -1])
+        W_res = tf.reshape(W_orig, [filters, -1])
 
-        # Compute the singular value approximations
-        u, v = self.power_iteration(W)
-
-        # Compute spectral norm
-        spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
+        # Compute spectral norm and singular value approximation
+        spectral_norm, u = self.power_iteration(W_res)
 
         # Normalize kernel weights
-        self.weights_sn = self.layer.weights[0] / spectral_norm
+        W_sn = W_orig / spectral_norm
 
         if training:
             # Update estimate of singular vector during training
             self.u = u
+
+        return W_sn
 
 
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
@@ -84,8 +87,9 @@ class SpectralNormalization(Layer):
         for _ in range(self.n_power_iterations):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
             u = self.normalize_l2(tf.matmul(W, v))
+            spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
-        return u, v
+        return spectral_norm, u
 
 
     @staticmethod
@@ -113,12 +117,15 @@ class SpectralNormalization(Layer):
         """
         if not self.init:
             _ = self.layer(x)
+            self.layer.kernel_orig = self.add_weight('kernel_orig', self.layer.kernel.shape, trainable=True)
+            weights = self.layer.get_weights()
+            self.layer.set_weights([tf.identity(weights[0]), weights[0]])
             self.init = True
 
         # Normalize weights before performing the standard forward pass of
         # Conv2D layer
-        self.normalize_weights(training=training)
-
+        W_sn = self.normalize_weights(training=training)
+        self.layer.kernel = W_sn
         output = self.layer(x)
 
         return output
