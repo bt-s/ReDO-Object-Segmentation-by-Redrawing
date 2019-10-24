@@ -62,7 +62,7 @@ class InformationConservationNetwork(Model):
         self.final_layer = Dense(units=n_output*self.n_classes,
                 kernel_initializer=orthogonal(gain=init_gain))
 
-    def call(self, x: tf.Tensor, k: int, training: bool):
+    def call(self, x: tf.Tensor, training: bool):
         """Applies the information conservation network
 
         Args:
@@ -71,8 +71,8 @@ class InformationConservationNetwork(Model):
         """
 
         # set unused final layer to non-trainable
-        self.final_layers[1-k].trainable = False
-        self.final_layers[k].trainable = True
+        # self.final_layers[1-k].trainable = False
+        # self.final_layers[k].trainable = True
 
         # perform forward pass
         x = self.block_1(x, training)
