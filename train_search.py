@@ -38,7 +38,8 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=50)
+    parser.add_argument('-b', '--batch-size', type=int, default=50,
+                        help='actual size is batch_size / 2')
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
