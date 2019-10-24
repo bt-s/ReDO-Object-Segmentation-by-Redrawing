@@ -20,7 +20,7 @@ from train_utils import *
 
 
 if __name__ == '__main__':
-    session_name = 'Unsupervised_Flowers_SA'
+    session_name = 'Unsupervised_Flowers_SA_lambda_05'
 
     # Create datasets
     dataset = FlowerDataset()
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=init_gain, weight_decay=1e-4)
-    iteration = 11000
+    iteration = 5500
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))
 

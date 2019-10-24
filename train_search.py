@@ -41,7 +41,7 @@ def parse_train_args():
     parser.add_argument('-b', '--batch-size', type=int, default=25)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
-    parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
+    parser.add_argument('-lz', '--lambda-z', type=float, default=5.0/32,
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-i', '--n-iterations', type=int, default=40000)
