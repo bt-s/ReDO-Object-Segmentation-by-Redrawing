@@ -439,7 +439,7 @@ class Generator(Model):
             else:
                 batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=3)
                 batch_regions_fake += batch_regions_k_fake
-                batch_z_k = tf.concat((batch_z_k, z_k))
+                batch_z_k = tf.concat((batch_z_k, z_k), axis=3)
 
         # Return batch of fake images
         if update_generator:
