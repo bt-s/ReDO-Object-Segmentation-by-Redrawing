@@ -1,9 +1,11 @@
-import torch
 #!/usr/bin/python3
 
 """spectral_norm_test.py - Script to test whether our TensorFlow 2.0
                            implementation of spectral normalization is
-                           correct.
+                           correct. The test executes a single forward pass
+                           and compares the outputs against the PyTorch
+                           implementation (see: https://pytorch.org/docs/stable/
+                           _modules/torch/nn/utils/spectral_norm.html).
 
 For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
