@@ -20,20 +20,20 @@ from discriminator import *
 
 if __name__ == '__main__':
     # Session name
-    session_name = 'Unsupervised_Flowers_SA'
+    session_name = 'Unsupervised_Flowers'
 
     # Iteration to evaluate
-    iteration = 10000
+    iteration = 3000
 
     # Create datasets
     dataset = FlowerDataset()
-    test_dataset = dataset.get_split('test', batch_size=5)
+    test_dataset = dataset.get_split('training', batch_size=25)
 
     # Initializer
-    init_gain = 0.0
+    init_gain = 1.0
 
     # Create loss
-    loss = UnsupervisedLoss(lambda_z=5.0)
+    loss = UnsupervisedLoss(lambda_z=5.0/32)
 
     # Create model and load weights
     segmentation_network = SegmentationNetwork(n_classes=dataset.n_classes,
@@ -63,8 +63,9 @@ if __name__ == '__main__':
 
         z_k_hat = z_k
 
-        d_logits_fake = discriminator(batch_images_fake, training=False)
         d_logits_real = discriminator(batch_images_real, training=False)
+        d_logits_fake = discriminator(batch_images_fake, training=False)
+
         print(f'd_logits_real: {d_logits_real}')
         print(f'd_logits_fake: {d_logits_fake}')
 

@@ -59,8 +59,8 @@ class InformationConservationNetwork(Model):
         self.block_4 = GlobalAveragePooling2D()
 
         # Dense classification layers
-        self.final_layers = [Dense(units=n_output,
-                kernel_initializer=orthogonal(gain=init_gain)) for _ in range(self.n_classes)]
+        self.final_layer = Dense(units=n_output*self.n_classes,
+                kernel_initializer=orthogonal(gain=init_gain))
 
     def call(self, x: tf.Tensor, k: int, training: bool):
         """Applies the information conservation network
@@ -84,7 +84,8 @@ class InformationConservationNetwork(Model):
         x = self.res_block_6(x, training)
         x = ReLU()(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
-        x = self.final_layers[k](x)
+        x = self.final_layer(x)
+        x = tf.reshape(x, [x.shape[0]*self.n_classes, -1])
 
         return x
 

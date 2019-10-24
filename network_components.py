@@ -33,9 +33,11 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
+    def build(self, input_shape):
         # u cannot be initialized yet, since the kernel shape is
         # not known yet
-        self.u = None
+        self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
+                                 initializer=tf.initializers.Ones, trainable=False)
 
     def normalize_weights(self, training: bool):
         """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
@@ -71,10 +73,6 @@ class SpectralNormalization(Layer):
             Approximate spectral norm and updated singular vector
             approximation.
         """
-
-        if self.u is None:
-            self.u = self.add_weight(name='u', shape=[self.layer.weights[0].shape.as_list()[-1], 1],
-                                   initializer=tf.initializers.RandomNormal, trainable=False)
 
         for _ in range(self.n_power_iterations):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
@@ -124,6 +122,7 @@ class SpectralNormalization(Layer):
         # normalize weights
         W_sn = self.normalize_weights(training=training)
         # assign normalized weights to kernel for forward pass
+
         self.layer.kernel = W_sn
         # perform forward pass of Conv2d layer
         output = self.layer(x)
