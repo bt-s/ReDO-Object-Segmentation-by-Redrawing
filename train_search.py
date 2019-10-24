@@ -45,7 +45,7 @@ def parse_train_args():
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-i', '--n-iterations', type=int, default=40000)
-    parser.add_argument('-c', '--checkpoint-iter', type=int, default=100)
+    parser.add_argument('-c', '--checkpoint-iter', type=int, default=1000)
     parser.add_argument('-s', '--session-name', type=str, default='MySession')
     parser.add_argument('-z', '--z-dim', type=int, default=32,
                         help='Dimension of latent z-variable')
@@ -258,12 +258,19 @@ def train(args: Namespace, datasets: Dict):
 
         # Save model weights
         if (iter + 1) % args.checkpoint_iter == 0:
-            models['F'].save_weights(
+            for model in models.values():
+                model.save_weights(
                 'Weights/' + args.session_name + '/' +
-                models['F'].model_name + '/Iteration_' + str(iter + 1) + '/')
+                model.model_name + '/Iteration_' + str(iter + 1) + '/')
 
             # perform validation step
             validation_step(datasets['val'], models, metrics)
+
+            # print self-attention gamma
+            print('SA Gamma - Generator 0: ', models['G'].class_generators[0].block_3.gamma)
+            print('SA Gamma - Generator 1: ', models['G'].class_generators[1].block_3.gamma)
+            print('SA Gamma - Discriminator: ', models['D'].block_2.gamma)
+            print('SA Gamma - Information: ', models['I'].block_2.gamma)
 
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)

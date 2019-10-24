@@ -346,7 +346,7 @@ class ClassGenerator(Model):
                         training=training)
                 x = self.up_res_block_4(x, z_k, batch_masks_k,
                         training=training)
-                #x = self.block_3(x, training=training)
+                x = self.block_3(x, training=training)
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
                 batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
                         training=training)

@@ -125,7 +125,7 @@ class Discriminator(Model):
             training: Whether we are training
         """
         x = self.block_1(x, training)
-        #x = self.block_2(x, training)
+        x = self.block_2(x, training)
         x = self.res_block_2(x, training)
         x = self.res_block_3(x, training)
         x = self.res_block_4(x, training)
