@@ -464,7 +464,6 @@ if __name__ == '__main__':
     faces_validation = Faces.get_split(split='validation', size=400,
                                        shuffle=True)
     faces_test = Faces.get_split(split='test')
-    print(tf.data.experimental.cardinality(faces_training))
 
     for idx, (batch_images, batch_labels) in enumerate(flowers_training):
         for image, label in zip(batch_images, batch_labels):
