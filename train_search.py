@@ -267,9 +267,10 @@ def train(args: Namespace, datasets: Dict):
         if (iter + 1) % args.checkpoint_iter == 0:
             # Save model weights
             for model in models.values():
-                model.save_weights(
-                'Weights/' + args.session_name + '/' +
-                model.model_name + '/Iteration_' + str(iter + 1) + '/')
+                if model.model_name == 'Segmentation_Network':
+                    model.save_weights(
+                    'Weights/' + args.session_name + '/' +
+                    model.model_name + '/Iteration_' + str(iter + 1) + '/')
 
             # Perform validation step
             validation_step(datasets['val'], models, metrics)
