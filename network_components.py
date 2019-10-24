@@ -11,7 +11,7 @@ __author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
 
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
-        Conv2D, MaxPool2D, Softmax, AveragePooling2D
+        Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
 from typing import Tuple
 
@@ -147,21 +147,23 @@ class SelfAttentionModule(Layer):
             self.key_size = key_size
 
         # Trainable parameter to control influence of learned attention maps
-        #self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
+        self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
+
+        # map pooling to reduce memory print
+        self.max_pool = MaxPool2D(pool_size=(2, 2))
 
         # Learned transformation
         self.f = SpectralNormalization(Conv2D(
             filters=self.key_size, kernel_size=(1, 1),
-            kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.g = SpectralNormalization(Conv2D(filters=self.key_size,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.h = SpectralNormalization(Conv2D(filters=output_channels,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
+        self.h = SpectralNormalization(Conv2D(filters=output_channels//2,
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.out = SpectralNormalization(Conv2D(filters=output_channels,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
 
-
-    def compute_attention(self, x: tf.Tensor, train: bool) -> tf.Tensor:
+    def compute_attention(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Compute attention maps
         Args:
             x: Input to the residual block
@@ -172,17 +174,21 @@ class SelfAttentionModule(Layer):
         # Height, width, channel
         h, w, c = x.shape.as_list()[1:]
 
-        fx = tf.reshape(self.f(x, train), [-1, h * w, self.key_size])
-        gx = tf.reshape(self.g(x, train), [-1, h * w, self.key_size])
+        # Compute and reshape features
+        fx = tf.reshape(self.f(x, training), [-1, h * w, self.key_size])
+        gx = self.g(x, training)
+        # Downsample features to reduce memory print
+        gx = self.max_pool(gx)
+        gx = tf.reshape(gx, [-1, (h * w)//4, self.key_size])
         s = tf.matmul(fx, gx, transpose_b=True)
-
         beta = Softmax(axis=2)(s)
-
-        hx = tf.reshape(self.h(x, train), [-1, h * w, c])
+        hx = self.h(x, training)
+        hx = self.max_pool(hx)
+        hx = tf.reshape(hx, [-1, (h * w)//4, c//2])
 
         interim = tf.matmul(beta, hx)
-        interim = tf.reshape(interim, [-1, h, w, c])
-        o = self.out(interim, train)
+        interim = tf.reshape(interim, [-1, h, w, c//2])
+        o = self.out(interim, training)
 
         return o
 
