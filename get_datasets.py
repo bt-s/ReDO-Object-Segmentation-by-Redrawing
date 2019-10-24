@@ -1,9 +1,16 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
-"""Script to get the three datasets we are using. The general setup is to have
-four files/folders per each dataset (i) the images (ii) the segmentations
-(iii) the paths file and (iv) the split file. To keep it consistent all the
-datasets keep the same structure and naming scheme which is
+"""get_datasets.py - Script to get the Flowers, Birds and Faces datasets.
+
+The general setup is to have three files/folders per each dataset:
+    (i) the images
+    (ii) the segmentations
+    (iii) the paths file
+    (iv) the split file.
+
+To keep it consistent all the datasets keep the same structure and naming
+scheme, which is:
+
 Datasets/
 -- DatasetName/
 -- -- images/
@@ -15,12 +22,17 @@ Datasets/
 -- -- paths.txt
 -- -- train_val_test_split.txt
 
-the split file contains two fields per line, the number of the image, and the
+The split file contains two fields per line, the number of the image, and the
 type (train, test, validate) which is defined in datasets.Dataset.SPLIT_KEYS
 In paths.txt there are two fields per line, the number of the image and the
 path assuming the common structure shown above. Though differences may appear in
-each subclass of dataset.Dataset
+each subclass of dataset.Dataset.
+
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
 """
+
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 from tensorflow.keras.utils import get_file
 from scipy.io import loadmat
@@ -32,6 +44,7 @@ from sys import argv
 from pathlib import Path
 from shutil import rmtree
 from os.path import splitext
+from typing import List
 
 import datasets
 
@@ -47,13 +60,23 @@ def parse_download_args():
     return parser.parse_args(argv[1:])
 
 
-def _rm_dirs(dirs_to_rm):
+def _rm_dirs(dirs_to_rm: List):
+    """Directories to be removed
+
+    Args:
+        dirs_to_rm: List of directories to be removed
+    """
     for a_dir in dirs_to_rm:
         if a_dir.exists():
             rmtree(a_dir)
 
 
-def configure_flowers(datasets_dir):
+def configure_flowers(datasets_dir: str):
+    """Configure the Flowers data set
+
+    Args:
+        datasets_dir: Directory in which to configure the Flowers data set
+    """
     flowers_dir = datasets_dir / 'Flowers'
     flowers_dir.mkdir(exist_ok=True)
 
@@ -62,26 +85,23 @@ def configure_flowers(datasets_dir):
         origin=('http://www.robots.ox.ac.uk/~vgg/data/flowers/102/'
                 '102flowers.tgz'),
         cache_subdir=flowers_dir.absolute(),
-        extract=True
-    )
+        extract=True)
 
     get_file(
         fname='102segmentations.tgz',
         origin=('http://www.robots.ox.ac.uk/~vgg/data/flowers/102/'
                 '102segmentations.tgz'),
         cache_subdir=flowers_dir.absolute(),
-        extract=True
-    )
+        extract=True)
 
     flowers_split_download = get_file(
         fname='setid.mat',
         origin='http://www.robots.ox.ac.uk/~vgg/data/flowers/102/setid.mat',
-        cache_subdir=flowers_dir.absolute()
-    )
+        cache_subdir=flowers_dir.absolute())
 
     flowers_splits = loadmat(flowers_split_download)
 
-    # dump to file
+    # Dump to file
     add_to_inds = lambda inds, type, ids: inds.extend(
         [(id, type) for id in ids])
 
@@ -111,7 +131,7 @@ def configure_flowers(datasets_dir):
         paths = [f.name.split('_')[1] for f in sorted(images_path.iterdir())]
         with open(paths_path, 'w+') as f:
             for (i, path) in enumerate(paths):
-                f.write('%i %s\n' % (i + 1, path))
+                f.write(f'{i+1} {path}\n')
 
     default_labels_path = flowers_dir / 'segmim'
     labels_path = flowers_dir / 'labels'
@@ -124,12 +144,17 @@ def configure_flowers(datasets_dir):
     _rm_dirs([default_images_path, default_labels_path])
 
 
-def _read_face_split(fname):
+def _read_face_split(fname: str):
+    """Read face splits
+
+    Args:
+        fname: File name
+    """
     image_names_in_split = set()
     with open(fname, 'r') as reader:
         for line in reader.readlines():
             person, num = line.strip().split(' ')
-            image_names_in_split.add('%s_%s.jpg' % (person, num.zfill(4)))
+            image_names_in_split.add(f'{person}_{num.zfill(4)}.jpg')
     return image_names_in_split
 
 
@@ -153,8 +178,7 @@ def configure_faces(datasets_dir):
         origin='http://vis-www.cs.umass.edu/lfw/lfw-funneled.tgz',
         cache_subdir=faces_dir.absolute(),
         extract=True,
-        file_hash='1b42dfed7d15c9b2dd63d5e5840c86ad'
-    )
+        file_hash='1b42dfed7d15c9b2dd63d5e5840c86ad')
 
     get_file(
         fname='labels.tgz',
@@ -162,27 +186,23 @@ def configure_faces(datasets_dir):
                 '/parts_lfw_funneled_gt_images.tgz'),
         cache_subdir=faces_dir.absolute(),
         extract=True,
-        file_hash='3e7e26e801c3081d651c8c2ef3c45cfc'
-    )
+        file_hash='3e7e26e801c3081d651c8c2ef3c45cfc')
 
     train_file = get_file(
         fname='train.txt',
         origin='http://vis-www.cs.umass.edu/lfw/part_labels/parts_train.txt',
-        cache_subdir=faces_dir.absolute()
-    )
+        cache_subdir=faces_dir.absolute())
 
     test_file = get_file(
         fname='test.txt',
         origin='http://vis-www.cs.umass.edu/lfw/part_labels/parts_test.txt',
-        cache_subdir=faces_dir.absolute()
-    )
+        cache_subdir=faces_dir.absolute())
 
     valid_file = get_file(
         fname='valid.txt',
         origin=('http://vis-www.cs.umass.edu/lfw/part_labels/parts_validation'
                 '.txt'),
-        cache_subdir=faces_dir.absolute()
-    )
+        cache_subdir=faces_dir.absolute())
 
     default_images_path = faces_dir / 'lfw_funneled'
     images_path = faces_dir / 'images'
@@ -244,23 +264,20 @@ def configure_birds(datasets_dir):
             'http://www.vision.caltech.edu/visipedia-data/CUB-200-2011/CUB_200_'
             '2011.tgz'),
         cache_subdir=birds_dir.absolute(),
-        extract=True
-    )
+        extract=True)
 
     get_file(
         fname='segments.tgz',
         origin=('http://www.vision.caltech.edu/visipedia-data/CUB-200-2011/'
                 'segmentations.tgz'),
         cache_subdir=birds_dir.absolute(),
-        extract=True
-    )
+        extract=True)
 
     get_file(
         fname='train_val_test_split.txt',
         origin=('https://raw.githubusercontent.com/mickaelChen/ReDO/master/'
                 'datasplits/cub/train_val_test_split.txt'),
-        cache_subdir=birds_dir.absolute()
-    )
+        cache_subdir=birds_dir.absolute())
 
     default_extract_dir = birds_dir / 'CUB_200_2011'
     default_image_path = default_extract_dir / 'images'
@@ -294,3 +311,4 @@ if not download_args.datasets:
 
 for ds_key in download_args.datasets:
     SUPPORTED_DATASETS[ds_key](root_dataset_dir)
+

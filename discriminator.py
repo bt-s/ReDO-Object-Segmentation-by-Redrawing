@@ -1,92 +1,134 @@
+#!/usr/bin/python3
+
+"""discriminator.py - Implementation of the discriminator network and its
+                      components
+
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
+"""
+
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
+
+
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, Conv2D, MaxPool2D, Softmax, AveragePooling2D
+from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, \
+        Conv2D, MaxPool2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
-from network_components import SelfAttentionModule, SpectralNormalization
-import numpy as np
 from tensorflow.keras.optimizers import Adam
+import numpy as np
+from typing import Union, Tuple
+
+from network_components import SelfAttentionModule, SpectralNormalization
 from train_utils import UnsupervisedLoss
+import generator
 
-
-##################
-# Residual Block #
-##################
 
 class ResidualBlock(Layer):
-    """
-    Residual computation block with down-sampling option and variable number of output channels.
-    """
-    def __init__(self, init_gain, stride, output_channels):
-        """
-        :param init_gain: initializer gain for orthogonal initialization
-        :param stride: stride of the convolutional layers | tuple or int
-        :param output_channels: number of output channels
+    """Residual computation block with down-sampling option and variable number
+    of output channels."""
+    def __init__(self, init_gain: float, stride: Union[int, Tuple[int, int]],
+            output_channels: int):
+        """Class constructor
+
+        Args:
+            init_gain: Initializer gain for orthogonal initialization
+            stride: Stride of the convolutional layers
+            output_channels: Number of output channels
         """
         super(ResidualBlock, self).__init__()
 
-        # perform 1x1 convolutions on the identity to adjust the number of channels to the output of the residual
-        # pipeline
-        self.process_identity = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(1, 1), strides=stride,
-                                       kernel_initializer=orthogonal(gain=init_gain)))
+        # Perform 1x1 convolutions on the identity to adjust the number of
+        # channels to the output of the residual pipeline
+        self.process_identity = SpectralNormalization(Conv2D(
+            filters=output_channels, kernel_size=(1, 1), strides=stride,
+            kernel_initializer=orthogonal(gain=init_gain)))
 
-        # residual pipeline
-        self.conv_1 = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(3, 3), strides=stride, padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain)))
+        # Residual pipeline
+        self.conv_1 = SpectralNormalization(Conv2D(
+            filters=output_channels, kernel_size=(3, 3), strides=stride,
+            padding='same', kernel_initializer=orthogonal(gain=init_gain)))
         self.relu = ReLU()
-        self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels, kernel_size=(3, 3), padding='same',
-                                       kernel_initializer=orthogonal(gain=init_gain)))
+        self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels,
+            kernel_size=(3, 3), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain)))
 
-    def call(self, x, training):
 
-        # save identity
-        identity = self.process_identity(x, training)
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Perform call of residual block layer call
 
-        # pass input through pipeline
+        Args:
+            x: Input to the residual block
+            training: Whether we are training
+        """
+        # Save identity
+        identity = x
+
+        # Pass input through pipeline
         x = self.conv_1(x, training)
         x = self.relu(x)
         x = self.conv_2(x, training)
 
-        # skip-connection
+        if x.shape != identity.shape:
+            identity = self.process_identity(identity, training)
+
+        # Skip-connection
         x += identity
 
-        # apply ReLU activation
+        # Apply ReLU activation
         x = self.relu(x)
 
         return x
 
 
-#########################
-# Discriminator Network #
-#########################
-
 class Discriminator(Model):
-    def __init__(self, init_gain):
+    """Discriminator model for the GAN"""
+    def __init__(self, init_gain: float):
+        """Class constructor
+
+        ArgS:
+            init_gain: Initializer gain for orthogonal initialization
+        """
         super(Discriminator, self).__init__()
 
-        # set model's name
+        # Set model's name
         self.model_name = 'Discriminator'
 
-        # input residual down-sampling block
+        # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
-                                     stride=(2, 2))
+                stride=(2, 2))
 
-        # self-attention module
-        self.block_2 = SelfAttentionModule(init_gain=init_gain, output_channels=64)
+        # Self-attention module
+        self.block_2 = SelfAttentionModule(init_gain=init_gain,
+                output_channels=64)
 
-        # sequence of residual down-sampling blocks
-        self.res_block_2 = ResidualBlock(init_gain=init_gain, output_channels=64, stride=(2, 2))
-        self.res_block_3 = ResidualBlock(init_gain=init_gain, output_channels=128, stride=(2, 2))
-        self.res_block_4 = ResidualBlock(init_gain=init_gain, output_channels=256, stride=(2, 2))
-        self.res_block_5 = ResidualBlock(init_gain=init_gain, output_channels=512, stride=(2, 2))
-        self.res_block_6 = ResidualBlock(init_gain=init_gain, output_channels=1024, stride=(1, 1))
+        # Sequence of residual down-sampling blocks
+        self.res_block_2 = ResidualBlock(init_gain=init_gain,
+                output_channels=64, stride=(2, 2))
+        self.res_block_3 = ResidualBlock(init_gain=init_gain,
+                output_channels=128, stride=(2, 2))
+        self.res_block_4 = ResidualBlock(init_gain=init_gain,
+                output_channels=256, stride=(2, 2))
+        self.res_block_5 = ResidualBlock(init_gain=init_gain,
+                output_channels=512, stride=(2, 2))
+        self.res_block_6 = ResidualBlock(init_gain=init_gain,
+                output_channels=1024, stride=(1, 1))
 
-        # spatial sum pooling
+        # Spatial sum pooling
         self.block_4 = AveragePooling2D(pool_size=(4, 4), padding='same')
 
-        # dense classification layer
-        self.block_5 = Dense(units=1, kernel_initializer=orthogonal(gain=init_gain))
+        # Dense classification layer
+        self.block_5 = Dense(units=1,
+                kernel_initializer=orthogonal(gain=init_gain))
 
-    def call(self, x, training):
+
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Call the Discriminator network
+
+        Args:
+            x: Input to the residual block
+            training: Whether we are training
+        """
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)
@@ -94,48 +136,54 @@ class Discriminator(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * self.block_4.pool_size[1]
+        x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * \
+                self.block_4.pool_size[1]
         x = self.block_5(x)
+
         return x
 
-    def set_name(self, name):
-        """
-        Set name of the model.
-        :param name: string containing model name
-        """
 
+    def set_name(self, name: str):
+        """Set name of the model.
+            name: Model name
+        """
         self.model_name = name
 
 
 if __name__ == '__main__':
+    # Create generator object
+    generator = generator.Generator(n_classes=2, n_input=32, base_channels=32,
+            init_gain=1.0)
 
-    # create generator object
-    generator = Generator(n_classes=2, n_input=32, base_channels=32, init_gain=1.0)
-
-    # discriminator network
+    # Discriminator network
     discriminator = Discriminator(init_gain=1.0)
 
-    # create optimizer object
+    # Create optimizer object
     optimizer = Adam(learning_rate=1e-1, beta_1=0, beta_2=0.9)
 
-    # create loss function
+    # Create loss function
     loss = UnsupervisedLoss(lambda_z=5.0)
 
-    # load input image and mask
+    # Load input image and mask
     input_path_1 = 'Datasets/Flowers/images/image_00001.jpg'
     label_path_1 = 'Datasets/Flowers/labels/label_00001.jpg'
     image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
-    image_real = tf.image.resize(image_real, (128, 128), preserve_aspect_ratio=False)
-    batch_image_real = tf.expand_dims(tf.image.per_image_standardization(image_real), 0)
+    image_real = tf.image.resize(image_real, (128, 128),
+            preserve_aspect_ratio=False)
+    batch_image_real = tf.expand_dims(tf.image.per_image_standardization(
+        image_real), 0)
     mask = tf.image.decode_jpeg(tf.io.read_file(label_path_1), channels=1)
-    mask = tf.expand_dims(tf.image.resize(mask, (128, 128), preserve_aspect_ratio=False), 0)
+    mask = tf.expand_dims(tf.image.resize(mask, (128, 128),
+        preserve_aspect_ratio=False), 0)
     background_color = 29
-    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * background_color, mask >= 1.1 * background_color)
-                                           , 10, -10), tf.float32)[:, :, :, 0], 3)
+    mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * \
+            background_color, mask >= 1.1 * background_color), 10, -10),
+            tf.float32)[:, :, :, 0], 3)
     masks = tf.concat((mask, -1*mask), axis=3)
 
     with tf.GradientTape() as tape:
-        batch_image_fake = generator(batch_image_real, masks, update_generator=False, training=True)
+        batch_image_fake = generator(batch_image_real, masks,
+                update_generator=False, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         d_logits_real = discriminator(batch_image_real, training=True)
 
@@ -145,6 +193,6 @@ if __name__ == '__main__':
         print('D_F: ', d_loss_f)
 
     gradients = tape.gradient(d_loss, discriminator.trainable_variables)
-    # update weights
+    # Update weights
     optimizer.apply_gradients(zip(gradients, discriminator.trainable_variables))
 
