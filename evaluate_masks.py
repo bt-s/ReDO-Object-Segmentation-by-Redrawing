@@ -32,7 +32,7 @@ if __name__ == '__main__':
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=init_gain, weight_decay=1e-4)
-    iteration = 100
+    iteration = 16800
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))
 
@@ -60,18 +60,18 @@ if __name__ == '__main__':
         batch_iou = compute_IoU(batch_predictions, batch_labels)
         metrics['test_IoU'](batch_iou)
 
-        # for image, prediction, label in zip(batch_images, batch_predictions,
-        #         batch_labels):
-        #     fig, ax = plt.subplots(1, 3)
-        #     ax[0].set_title('Image')
-        #     image = image.numpy() / (np.max(image) - np.min(image))
-        #     image -= np.min(image)
-        #     ax[0].imshow(image)
-        #     ax[1].set_title('Prediction')
-        #     ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray', vmin=0.0, vmax=1.0)
-        #     ax[2].set_title('Label')
-        #     ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
-        #     plt.show()
+        for image, prediction, label in zip(batch_images, batch_predictions,
+                batch_labels):
+            fig, ax = plt.subplots(1, 3)
+            ax[0].set_title('Image')
+            image = image.numpy() / (np.max(image) - np.min(image))
+            image -= np.min(image)
+            ax[0].imshow(image)
+            ax[1].set_title('Prediction')
+            ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray', vmin=0.0, vmax=1.0)
+            ax[2].set_title('Label')
+            ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
+            plt.show()
 
     # Print summary at the end of epoch
     test_summary = 'Loss: {:.6f}, Accuracy: {:.6f}, IoU: {:.6f}'

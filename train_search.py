@@ -6,7 +6,7 @@
     - information
     - mask/segmentation
 
-For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
@@ -164,7 +164,6 @@ def validation_step(validation_set: tf.data.Dataset,
 
         # Get predictions
         batch_predictions = models['F'](batch_images)
-        print(batch_predictions.shape)
         batch_accuracy = compute_accuracy(batch_predictions, batch_labels)
         metrics['accuracy'](batch_accuracy)
         batch_iou = compute_IoU(batch_predictions, batch_labels)
