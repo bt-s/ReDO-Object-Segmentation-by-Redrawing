@@ -41,7 +41,7 @@ def parse_train_args():
     parser.add_argument('-b', '--batch-size', type=int, default=25)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
-    parser.add_argument('-lz', '--lambda-z', type=float, default=5.0/32,
+    parser.add_argument('-lz', '--lambda-z', type=float, default=5.0/64,
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-i', '--n-iterations', type=int, default=40000)
@@ -122,12 +122,12 @@ def generator_update(batch_images_real: tf.Tensor,
         batch_masks = models['F'](batch_images_real)
 
         # Get fake images from generator
-        batch_images_fake, batch_z_k, k = models['G'](
+        batch_images_fake, batch_regions_fake, batch_z_k = models['G'](
             batch_images_real, batch_masks, update_generator=True,
             training=True)
 
         # Get the recovered z-value from the information network
-        batch_z_k_hat = models['I'](batch_images_fake, k, training=True)
+        batch_z_k_hat = models['I'](batch_regions_fake, training=True)
 
         # Get logits for fake images
         d_logits_fake = models['D'](batch_images_fake, training=True)
@@ -140,15 +140,15 @@ def generator_update(batch_images_real: tf.Tensor,
 
     # Compute gradients
     gradients = tape.gradient(g_loss, models['F'].trainable_variables +
-                              models['G'].class_generators[k].trainable_variables)
+                              models['G'].trainable_variables)
 
     f_gradients = gradients[:len(models['F'].trainable_variables)]
-    g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
+    g_gradients = gradients[-len(models['G'].trainable_variables):]
     i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
 
     # Update weights
     optimizers['G'].apply_gradients(zip(g_gradients,
-                                        models['G'].class_generators[k].trainable_variables))
+                                        models['G'].trainable_variables))
     optimizers['F'].apply_gradients(zip(f_gradients,
                                         models['F'].trainable_variables))
     optimizers['I'].apply_gradients(zip(i_gradients,
