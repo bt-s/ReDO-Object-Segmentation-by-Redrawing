@@ -14,7 +14,7 @@ import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.layers import Dense, BatchNormalization, ReLU, Conv2D, \
-        MaxPool2D, Softmax, AveragePooling2D
+        MaxPool2D, Softmax, GlobalAveragePooling2D
 
 from discriminator import ResidualBlock, SelfAttentionModule
 
@@ -35,6 +35,9 @@ class InformationConservationNetwork(Model):
         self.model_name = 'Information_Network'
         self.n_classes = n_classes
 
+        # ReLU
+        self.relu = ReLU
+        
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
                 stride=(2, 2))
@@ -56,15 +59,11 @@ class InformationConservationNetwork(Model):
                 output_channels=1024, stride=(1, 1))
 
         # Spatial sum pooling
-        self.block_4 = AveragePooling2D(pool_size=(4, 4), padding='same')
+        self.block_4 = GlobalAveragePooling2D()
 
-        # Dense classification layer
-        # TODO: Why is units here self.n_classes*n_ouput instead of n_output?
-        # According to the paper, units should be of size 32 (i.e.
-        # self.n_classes)
-        self.final_layer = Dense(units=self.n_classes*n_output,
+        # Dense classification layers
+        self.final_layer = Dense(units=n_output*self.n_classes,
                 kernel_initializer=orthogonal(gain=init_gain))
-
 
     def call(self, x: tf.Tensor, training: bool):
         """Applies the information conservation network
@@ -73,6 +72,7 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
+        # Perform forward pass
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)
@@ -80,10 +80,12 @@ class InformationConservationNetwork(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * \
-                self.block_4.pool_size[1]
+        x = self.relu(x)
+        x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.final_layer(x)
-        x = tf.reshape(x, [x.shape[0]*self.n_classes, -1])
+        x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
+        x = tf.transpose(x, [1, 0, 2])
+        x = tf.reshape(x, [x.shape[1]*self.n_classes, -1])
 
         return x
 

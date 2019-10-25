@@ -38,13 +38,13 @@ class ConvolutionalBlock(Model):
         super(ConvolutionalBlock, self).__init__()
 
         self.conv_block = Sequential()
+        self.conv_block.add(LayerNormalization(axis=(1, 2),
+            center=True, scale=True))
+        self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
             padding=padding, strides=stride, use_bias=False,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
-        self.conv_block.add(LayerNormalization(axis=(1, 2),
-            center=True, scale=True))
-        self.conv_block.add(ReLU())
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
@@ -75,8 +75,6 @@ class PPM(Model):
         if not len(input_shape) == 3:
             raise ValueError("Input parameter <input_dim> must be of shape "
                     "(W, H, C).")
-
-        n_input_channels = input_shape[2]
 
         # Scale 1 (1x1 Output)
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
@@ -188,17 +186,20 @@ class ResidualBlock(Model):
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
-        """Perform call of PPM block
+        """Perform call of Residual block
 
         Args:
-            x: Input to the PPM block
+            x: Input to the Residual block
         """
         # Store input for skip-connection
         identity = x
 
         # Residual pipeline
-        x = self.conv_1(x)
+
         x = self.in_1(x)
+        x = self.relu(x)
+        x = self.conv_1(x)
+        x = self.in_2(x)
         x = self.relu(x)
         x = self.conv_2(x)
         x = self.in_2(x)
@@ -219,11 +220,11 @@ class ReflectionPadding2D(Layer):
         super(ReflectionPadding2D, self).__init__()
 
 
-    def call(self, x: tf.Tensor) -> tf.Tensor:
-        """Perform call of PPM block
+ def call(self, x: tf.Tensor) -> tf.Tensor:
+        """Perform call of Reflection Padding block
 
         Args:
-            x: Input to the PPM block
+            x: Input to the Reflection Padding block
         """
         w_pad, h_pad = self.padding
 

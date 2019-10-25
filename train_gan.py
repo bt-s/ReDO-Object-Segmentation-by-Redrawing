@@ -39,14 +39,14 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=8)
+    parser.add_argument('-b', '--batch-size', type=int, default=32)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
                         help=('Multiplicative factor for information'
                               'conservation loss'))
     parser.add_argument('-e', '--epochs', type=int, default=100)
-    parser.add_argument('-c', '--checkpoint-iter', type=int, default=200)
+    parser.add_argument('-c', '--checkpoint-iter', type=int, default=350)
     parser.add_argument('-s', '--session-name', type=str, default='MySession')
     parser.add_argument('-z', '--z-dim', type=int, default=32,
             help='Dimension of latent z-variable')
@@ -63,7 +63,7 @@ def parse_train_args():
     return parser.parse_args(argv[1:])
 
 
-def discriminator_update(batch_images_real: tf.Tensor, training: bool,
+def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizers: Dict,
         models: Dict, metrics: Dict, adversarial_loss: UnsupervisedLoss,
         phase: str):
     """Updates the real and fake disciminator losses
@@ -71,6 +71,7 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool,
     Args:
         batch_images_real: Image batch (of size n) of shape (n, 128, 128, 3)
         training: Whether we are training
+        optimizers: Which optimizers to use
         models: Dict of models
         metrics: Dict of metrics
         adversarial_loss: Loss
@@ -127,12 +128,11 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
 
         # Get fake images from generator
         # Number of images generated = batch_size * n_classes
-        batch_images_fake, batch_regions_fake, batch_z_k = models['G'](
+        batch_images_fake, batch_z_k, k = models['G'](
                 batch_images_real, batch_masks, update_generator=True,
                 training=training)
-
         # Get the recovered z-value from the information network
-        batch_z_k_hat = models['I'](batch_regions_fake, training=training)
+        batch_z_k_hat = models['I'](batch_images_fake, k=k, training=training)
 
         # Get logits for fake images
         d_logits_fake = models['D'](batch_images_fake, training)
@@ -142,23 +142,21 @@ def generator_update(batch_images_real: tf.Tensor, training: bool,
                 batch_z_k, batch_z_k_hat)
 
         g_loss = g_loss_d + g_loss_i
-        print('Generator loss (discriminator): ', g_loss_d)
-        print('Discriminator loss (information): ', g_loss_i)
+        #print('Generator loss (discriminator): ', g_loss_d)
+        #print('Discriminator loss (information): ', g_loss_i)
 
     if training:
         # Compute gradients
         gradients = tape.gradient(g_loss, models['F'].trainable_variables +
-                models['G'].trainable_variables)
+                models['G'].class_generators[k].trainable_variables)
 
         f_gradients = gradients[:len(models['F'].trainable_variables)]
-        g_gradients = gradients[-len(models['G'].trainable_variables):]
-
-        i_gradients = tape.gradient(g_loss_i,
-                models['I'].trainable_variables)
+        g_gradients = gradients[-len(models['G'].class_generators[k].trainable_variables):]
+        i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
 
         # Update weights
         optimizers['G'].apply_gradients(zip(g_gradients,
-            models['G'].trainable_variables))
+            models['G'].class_generators[k].trainable_variables))
         optimizers['F'].apply_gradients(zip(f_gradients,
             models['F'].trainable_variables))
         optimizers['I'].apply_gradients(zip(i_gradients,
@@ -242,7 +240,7 @@ def train(args: Namespace, datasets: Dict):
     for epoch in range(args.epochs):
         # Print progress
         print('###########################################################')
-        print(f'Epoch: {epoch + 1}')
+        print('Epoch: ', epoch+1)
 
         # Each epoch consists of two phases: training and validation
         phases = ['train', 'val']
@@ -250,31 +248,35 @@ def train(args: Namespace, datasets: Dict):
             training = True if phase == 'train' else False
 
             # Print progress
-            print(f'Phase: {phase}')
+            print('Phase: ', phase)
 
             # Iterate over batches
             for batch_id, (batch_images_real, _) in enumerate(datasets[phase]):
 
                 # Print progress
                 ds_len = tf.data.experimental.cardinality(datasets[phase])
-                print(f'Batch: {batch_id + 1} / {ds_len}')
+                print('Batch {:d}/{:d}'.format(batch_id+1, ds_len))
 
                 if (batch_id % 2) == 0:
+                    batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
+
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
                 else:
                     # Update discriminator
-                    discriminator_update(batch_images_real, training,
+                    batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
+                    discriminator_update(batch_images_real, training, optimizers,
                             models, metrics, adversarial_loss,
                             phase=phase)
 
                 # Save model weights
                 if (batch_id + 1) % args.checkpoint_iter == 0:
-                    for model in models.values():
-                        model.save_weights(f'Weights/{args.session_name}/' \
-                                f'{model.model_name}/Epoch_{str(epoch+1)}' \
-                                f'batch_{str(batch_id+1)}')
+                    models['F'].save_weights(
+                        'Weights/' + args.session_name + '/' +
+                        models['F'].model_name + '/Epoch_' + str(epoch + 1) +
+                        '_Batch_' + str(batch_id + 1) + '/'
+                    )
 
         # Log epoch for tensorboard and print summary
         log_epoch(metrics, tensorboard_writers, epoch, scheme='unsupervised')
