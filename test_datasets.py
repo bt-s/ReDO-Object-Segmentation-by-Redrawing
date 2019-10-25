@@ -19,7 +19,7 @@ from datasets import BirdDataset, FlowerDataset, FaceDataset
 if __name__ == '__main__':
 
     # Birds
-    Birds = BirdDataset(root='../Datasets/Birds/', image_dir='images/',
+    Birds = BirdDataset(root='Datasets/Birds/', image_dir='images/',
                         label_dir='labels/', path_file='paths.txt',
                         split_file='train_val_test_split.txt')
     Birds.summary()
@@ -28,7 +28,7 @@ if __name__ == '__main__':
     birds_test = Birds.get_split(split='test')
 
     # Flowers
-    Flowers = FlowerDataset(root='../Datasets/Flowers/', image_dir='images/',
+    Flowers = FlowerDataset(root='Datasets/Flowers/', image_dir='images/',
                             label_dir='labels/', path_file='paths.txt',
                             split_file='train_val_test_split.txt')
     Flowers.summary()
@@ -39,7 +39,7 @@ if __name__ == '__main__':
     # Faces
     exit(0)
     # Not supported at the moment
-    Faces = FaceDataset(root='../Datasets/Faces/', image_dir='images/',
+    Faces = FaceDataset(root='Datasets/Faces/', image_dir='images/',
                         label_dir='labels/', path_file='paths.txt',
                         split_file='train_val_test_split.txt')
 

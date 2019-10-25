@@ -33,8 +33,8 @@ if __name__ == '__main__':
     loss = UnsupervisedLoss(lambda_z=5.0)
 
     # Load input image and mask
-    input_path_1 = '../Datasets/Flowers/images/image_00001.jpg'
-    label_path_1 = '../Datasets/Flowers/labels/label_00001.jpg'
+    input_path_1 = 'Datasets/Flowers/images/image_00001.jpg'
+    label_path_1 = 'Datasets/Flowers/labels/label_00001.jpg'
     image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
     image_real = tf.image.resize(image_real, (128, 128),
             preserve_aspect_ratio=False)

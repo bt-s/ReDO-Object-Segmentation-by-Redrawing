@@ -49,7 +49,7 @@ class SpectralNormalization(Layer):
 
         # Store the original weights
         W_orig = self.layer.kernel_orig
-        
+
         # Reshape kernel weights
         W_res = tf.reshape(W_orig, [filters, -1])
 
@@ -117,7 +117,8 @@ class SpectralNormalization(Layer):
         """
         if not self.init:
             _ = self.layer(x)
-            self.layer.kernel_orig = self.add_weight('kernel_orig', self.layer.kernel.shape, trainable=True)
+            self.layer.kernel_orig = self.add_weight('kernel_orig',
+                    self.layer.kernel.shape, trainable=True)
             weights = self.layer.get_weights()
             self.layer.set_weights([tf.identity(weights[0]), weights[0]])
             self.init = True
