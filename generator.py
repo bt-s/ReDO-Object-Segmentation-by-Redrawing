@@ -365,7 +365,7 @@ class ClassGenerator(Model):
 
                 batch_images_fake += batch_images_real * batch_masks_inv
 
-        return batch_images_fake, batch_region_k_fake, z_k[:, 0, 0, :]
+        return batch_images_fake, z_k[:, 0, 0, :]
 
 
 class Generator(Model):
@@ -426,7 +426,7 @@ class Generator(Model):
         k = np.random.randint(0, self.n_classes)
 
         # Generate batch of fake images
-        batch_images_fake, batch_z_k, k = \
+        batch_images_fake, batch_z_k = \
                         self.class_generators[k](batch_images_real, batch_masks,
                                 n_input=self.n_input, training=training)
 
