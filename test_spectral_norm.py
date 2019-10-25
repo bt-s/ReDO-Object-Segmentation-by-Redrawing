@@ -33,7 +33,7 @@ torch.manual_seed(0)
 # Torch formatted weights
 np.random.seed(10)
 W = np.random.randn(1, 1, 3, 3)
-W_t = torchmul.from_numpy(W).float()
+W_t = torch.from_numpy(W).float()
 
 # TensorFlow formatted weights
 np.random.seed(10)
@@ -81,7 +81,9 @@ def torch_fwd(inp: torch.Tensor , label: torch.Tensor,
     optimizer.step()
     out2 = model(inp)
 
-    
+    return out1, out2
+
+
 def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
         spectral_normalization: bool=False) -> Tuple[tf.Tensor, tf.Tensor]:
     """Perform a single foward pass using PyTorch

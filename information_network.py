@@ -36,7 +36,7 @@ class InformationConservationNetwork(Model):
         self.n_classes = n_classes
 
         # ReLU
-        self.relu = ReLU
+        self.relu = ReLU()
         
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,

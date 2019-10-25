@@ -114,7 +114,8 @@ class SpectralNormalization(Layer):
         # Introduce 'kernel_orig' as trainable variables
         if not self.init:
             _ = self.layer(x)
-            self.layer.kernel_orig = self.add_weight('kernel_orig', self.layer.kernel.shape, trainable=True)
+            self.layer.kernel_orig = self.add_weight('kernel_orig',
+                    self.layer.kernel.shape, trainable=True)
             weights = self.layer.get_weights()
             # set 'kernel_orig' to network's weights. 'kernel_orig' will be updated, 'kernel'
             # will be normalized and used in the forward pass

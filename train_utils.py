@@ -32,6 +32,7 @@ class UnsupervisedLoss(Loss):
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
+
     def get_g_loss(self, d_logits_fake: tf.Tensor, z_k: tf.Tensor,
             z_k_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
@@ -111,7 +112,7 @@ class SupervisedLoss(Loss):
         loss = tf.reduce_mean(loss, axis=(0, 1, 2))
         return loss
 
-      
+
 # TODO: add type hinting for input argument iterator
 def get_batch(update_generator: bool, iterator):
 
@@ -130,7 +131,7 @@ def log_epoch(metrics: Dict[str, Mean],
               tensorboard_writers: Dict[str, tf.summary.SummaryWriter],
               epoch: int, scheme: str):
     """Log the training process
-    
+
     Args:
         tensorboard_writers: Dictionary of TF summary writers
         epoch: The current epoch
@@ -215,7 +216,7 @@ def log_epoch(metrics: Dict[str, Mean],
 class EarlyStopping:
     """Early stop the training if the validation loss doesn't improve after a
     given patience."""
-    
+
     # TODO finish docstrings and type-hinting for this class
     def __init__(self, patience: int=7, verbose: bool=False,
             improvement: str='down'):
@@ -230,7 +231,7 @@ class EarlyStopping:
         if not improvement == 'up' or improvement == 'down':
             raise ValueError(("Input argument <improvement> must be one of: "
                 "'up' or 'down'."))
-            
+
         self.patience = patience
         self.verbose = verbose
         self.improvement = improvement
@@ -238,7 +239,7 @@ class EarlyStopping:
         self.best_epoch = None
         self.early_stop = False
         self.counter = 0
-        
+
 
     def __call__(self, score, epoch, session_name, models):
         """Make the class callable
@@ -288,7 +289,6 @@ class EarlyStopping:
             models:
             session_name:
         """
-
         # Set current score as new maximum
         self.best_score = score
 
