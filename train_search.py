@@ -127,7 +127,7 @@ def generator_update(batch_images_real: tf.Tensor,
             training=True)
 
         # Get the recovered z-value from the information network
-        batch_z_k_hat = models['I'](batch_images_fake, training=True)
+        batch_z_k_hat = models['I'](batch_images_fake, k, training=True)
 
         # Get logits for fake images
         d_logits_fake = models['D'](batch_images_fake, training=True)
