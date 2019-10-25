@@ -81,6 +81,8 @@ class InformationConservationNetwork(Model):
         x = ReLU()(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.final_layer(x)
+        x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
+        x = tf.transpose(x, [1, 0, 2])
         x = tf.reshape(x, [x.shape[0]*self.n_classes, -1])
 
         return x
