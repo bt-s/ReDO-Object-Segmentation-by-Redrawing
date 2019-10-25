@@ -38,9 +38,9 @@ class ConditionalBatchNormalization(Layer):
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
         self.gamma = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
-                padding='same', kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain))
+                padding='same', kernel_initializer=orthogonal(gain=init_gain))
         self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
-                padding='same', kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain))
+                padding='same', kernel_initializer=orthogonal(gain=init_gain))
 
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor) -> tf.Tensor:
@@ -141,7 +141,7 @@ class ResidualUpsamplingBlock(Layer):
         self.process_identity.add(UpSampling2D(size=(2, 2), interpolation='bilinear'))
         self.process_identity.add(SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(1, 1), padding='same',
-            kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain))))
+            kernel_initializer=orthogonal(gain=init_gain))))
 
         # Apply average-pooling to down-sample to segmentation mask
         self.mask_pool = AveragePooling2D(pool_size=mask_scale, padding='same')
@@ -152,12 +152,12 @@ class ResidualUpsamplingBlock(Layer):
         self.relu = ReLU()
         self.conv_1 = SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(3, 3), padding='same',
-            kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain)))
         self.cbn_2 = ConditionalBatchNormalization(filters=self.output_channels,
                 init_gain=init_gain)
         self.conv_2 = SpectralNormalization(Conv2D(
             filters=self.output_channels, kernel_size=(3, 3), padding='same',
-            kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain)))
 
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
@@ -223,7 +223,7 @@ class OutputBlock(Layer):
         self.relu = ReLU()
         self.conv = SpectralNormalization(Conv2D(
             filters=3, kernel_size=(3, 3), padding='same',
-            kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain)))
 
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
@@ -300,6 +300,7 @@ class ClassGenerator(Model):
         # Output block
         self.block_5 = OutputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=1)
+
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,

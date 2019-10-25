@@ -38,18 +38,16 @@ class ResidualBlock(Layer):
         # channels to the output of the residual pipeline
         self.process_identity = SpectralNormalization(Conv2D(
             filters=output_channels, kernel_size=(1, 1), strides=stride,
-            kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain)))
 
         # Residual pipeline
         self.conv_1 = SpectralNormalization(Conv2D(
             filters=output_channels, kernel_size=(3, 3), strides=stride,
-            padding='same', kernel_initializer=orthogonal(gain=init_gain),
-            bias_initializer=orthogonal(gain=init_gain)))
+            padding='same', kernel_initializer=orthogonal(gain=init_gain)))
         self.relu = ReLU()
         self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels,
             kernel_size=(3, 3), padding='same',
-            kernel_initializer=orthogonal(gain=init_gain),
-                                                   bias_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain)))
 
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
@@ -118,7 +116,7 @@ class Discriminator(Model):
 
         # Dense classification layer
         self.block_5 = Dense(units=1,
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain))
+                kernel_initializer=orthogonal(gain=init_gain))
 
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:

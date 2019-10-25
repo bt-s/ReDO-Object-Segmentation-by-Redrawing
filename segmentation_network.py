@@ -80,7 +80,7 @@ class PPM(Model):
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
         self.avg_pool_1 = AveragePooling2D(pool_size_1)
         self.conv_1 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_1 = UpSampling2D(size=pool_size_1,
                 interpolation='bilinear')
@@ -89,7 +89,7 @@ class PPM(Model):
         pool_size_2 = (input_shape[0] // 2, input_shape[1] // 2)
         self.avg_pool_2 = AveragePooling2D(pool_size_2)
         self.conv_2 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_2 = UpSampling2D(size=pool_size_2,
                 interpolation='bilinear')
@@ -99,7 +99,7 @@ class PPM(Model):
         pool_size_3 = (input_shape[0] // 4, input_shape[1] // 4)
         self.avg_pool_3 = AveragePooling2D(pool_size_3)
         self.conv_3 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_3 = UpSampling2D(size=pool_size_3,
                 interpolation='bilinear')
@@ -110,7 +110,7 @@ class PPM(Model):
         pool_size_4 = (input_shape[0] // 8, input_shape[1] // 8)
         self.avg_pool_4 = AveragePooling2D(pool_size_4)
         self.conv_4 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_4 = UpSampling2D(size=pool_size_4,
                 interpolation='bilinear')
@@ -174,13 +174,13 @@ class ResidualBlock(Model):
         super(ResidualBlock, self).__init__()
         self.conv_1 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=False,
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.in_1 = LayerNormalization(axis=(1, 2), center=True, scale=True)
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
-                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.in_2 = LayerNormalization(axis=(1, 2), center=True, scale=True)
 
@@ -290,12 +290,12 @@ class SegmentationNetwork(Model):
         if self.n_classes != 2:
             self.conv_final = Conv2D(filters=self.n_classes, kernel_size=(7, 7),
                     padding='valid', use_bias=True,
-                    kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                    kernel_initializer=orthogonal(gain=init_gain),
                     kernel_regularizer=L1L2(l2=weight_decay))
         else:
             self.conv_final = Conv2D(filters=1, kernel_size=(7, 7),
                     padding='valid', use_bias=True,
-                    kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain),
+                    kernel_initializer=orthogonal(gain=init_gain),
                     kernel_regularizer=L1L2(l2=weight_decay))
 
         self.block_4 = Sequential((self.conv_block_4, self.upsample,
