@@ -33,7 +33,7 @@ torch.manual_seed(0)
 # Torch formatted weights
 np.random.seed(10)
 W = np.random.randn(1, 1, 3, 3)
-W_t = torch.from_numpy(W).float()
+W_t = torchmul.from_numpy(W).float()
 
 # TensorFlow formatted weights
 np.random.seed(10)
@@ -66,7 +66,7 @@ def torch_fwd(inp: torch.Tensor , label: torch.Tensor,
         conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
                 padding=1, bias=False)
         conv_layer.weight.data = W_t
-        model = torch.nn.Sequential(OrderedDict([
+        model = torchmul.nn.Sequential(OrderedDict([
             ('conv', conv_layer),
             ('avg', torch.nn.AvgPool2d(3))]))
 
@@ -81,9 +81,7 @@ def torch_fwd(inp: torch.Tensor , label: torch.Tensor,
     optimizer.step()
     out2 = model(inp)
 
-    return out1, out2
-
-
+    
 def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
         spectral_normalization: bool=False) -> Tuple[tf.Tensor, tf.Tensor]:
     """Perform a single foward pass using PyTorch
@@ -113,8 +111,8 @@ def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
     loss_fn = tf.keras.losses.MeanSquaredError()
     optimizer = tf.keras.optimizers.SGD(learning_rate=0.1)
 
+    # initialize and print weights
     _ = conv(inp, training=False)
-
 
     with tf.GradientTape() as tape:
         out11 = conv(inp, training=True)
@@ -127,7 +125,6 @@ def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
     out2 = pool(out21)
 
     return out1, out2
-
 
 if __name__ == '__main__':
     # Torch forward pass
@@ -151,4 +148,3 @@ if __name__ == '__main__':
         print('Correct implementation of spectral normalization.')
     else:
         print('Incorrect implementation of spectral normalization.')
-

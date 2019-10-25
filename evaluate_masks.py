@@ -26,16 +26,12 @@ if __name__ == '__main__':
     dataset = FlowerDataset()
     test_dataset = dataset.get_split('test', batch_size=25)
 
-    # Initializer
-    init_gain = 0.8
-
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
-            init_gain=init_gain, weight_decay=1e-4)
-    epoch = 13
-    batch_id = 200
+            init_gain=0.0, weight_decay=1e-4)
+    iteration = 1000
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
-            f'Epoch_{str(epoch)}batch_{str(batch_id)}/'))
+            f'Iteration_{iteration}/'))
 
     # Loss function
     loss = SupervisedLoss()
@@ -69,7 +65,7 @@ if __name__ == '__main__':
             image -= np.min(image)
             ax[0].imshow(image)
             ax[1].set_title('Prediction')
-            ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray')
+            ax[1].imshow(prediction.numpy()[:, :, 1], cmap='gray', vmin=0.0, vmax=1.0)
             ax[2].set_title('Label')
             ax[2].imshow(label.numpy()[:, :, 1], cmap='gray')
             plt.show()

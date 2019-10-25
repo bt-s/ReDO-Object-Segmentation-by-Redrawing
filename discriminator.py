@@ -13,7 +13,7 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, \
-        Conv2D, MaxPool2D, Softmax, AveragePooling2D
+        Conv2D, MaxPool2D, Softmax, GlobalAveragePooling2D
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.optimizers import Adam
 import numpy as np
@@ -52,8 +52,8 @@ class ResidualBlock(Layer):
         self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels,
             kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
-
-
+        
+        
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of residual block layer call
 
@@ -65,6 +65,7 @@ class ResidualBlock(Layer):
         identity = x
 
         # Pass input through pipeline
+        x = self.relu(x)
         x = self.conv_1(x, training)
         x = self.relu(x)
         x = self.conv_2(x, training)
@@ -74,9 +75,6 @@ class ResidualBlock(Layer):
 
         # Skip-connection
         x += identity
-
-        # Apply ReLU activation
-        x = self.relu(x)
 
         return x
 
@@ -94,6 +92,9 @@ class Discriminator(Model):
         # Set model's name
         self.model_name = 'Discriminator'
 
+        # Set ReLU
+        self.relu = ReLU()
+        
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
                 stride=(2, 2))
@@ -115,13 +116,13 @@ class Discriminator(Model):
                 output_channels=1024, stride=(1, 1))
 
         # Spatial sum pooling
-        self.block_4 = AveragePooling2D(pool_size=(4, 4), padding='same')
+        self.block_4 = GlobalAveragePooling2D()
 
         # Dense classification layer
         self.block_5 = Dense(units=1,
                 kernel_initializer=orthogonal(gain=init_gain))
 
-
+        
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Call the Discriminator network
 
@@ -136,18 +137,11 @@ class Discriminator(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = self.block_4(x)[:, 0, 0, :] * self.block_4.pool_size[0] * \
-                self.block_4.pool_size[1]
+        x = self.relu(x)
+        x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.block_5(x)
 
         return x
-
-
-    def set_name(self, name: str):
-        """Set name of the model.
-            name: Model name
-        """
-        self.model_name = name
 
 
 if __name__ == '__main__':
@@ -177,9 +171,9 @@ if __name__ == '__main__':
         preserve_aspect_ratio=False), 0)
     background_color = 29
     mask = tf.expand_dims(tf.cast(tf.where(tf.logical_or(mask <= 0.9 * \
-            background_color, mask >= 1.1 * background_color), 10, -10),
+            background_color, mask >= 1.1 * background_color), 1, 0),
             tf.float32)[:, :, :, 0], 3)
-    masks = tf.concat((mask, -1*mask), axis=3)
+    masks = tf.concat((mask, 1-mask), axis=3)
 
     with tf.GradientTape() as tape:
         batch_image_fake = generator(batch_image_real, masks,

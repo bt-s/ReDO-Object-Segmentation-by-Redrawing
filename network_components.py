@@ -6,13 +6,12 @@
 For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
-
 __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
-        Conv2D, MaxPool2D, Softmax, AveragePooling2D
+        Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.constraints import Constraint
 from typing import Tuple
@@ -21,6 +20,7 @@ from typing import Tuple
 class SpectralNormalization(Layer):
     """Spectral normalization layer to wrap around a Conv2D Layer. Kernel
     weights are normalized before each forward pass."""
+
     def __init__(self, layer: Conv2D, n_power_iterations: int=1):
         """Class constructor
 
@@ -36,20 +36,20 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
-        # u and W_orig cannot be initialized yet, since the kernel shape is
+    def build(self, input_shape):
+        # u cannot be initialized yet, since the kernel shape is
         # not known yet
-        self.u = None
-        self.W_orig = None
-
+        self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
+            initializer=tf.initializers.Ones, trainable=False)
 
     def normalize_weights(self, training: bool):
         """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
         # Number of filter kernels in Conv2D layer
         filters = self.layer.weights[0].shape.as_list()[-1]
 
-        # Store the original weights
+        # Get original weights
         W_orig = self.layer.kernel_orig
-        
+
         # Reshape kernel weights
         W_res = tf.reshape(W_orig, [filters, -1])
 
@@ -65,7 +65,7 @@ class SpectralNormalization(Layer):
 
         return W_sn
 
-
+      
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute approximate spectral norm.
 
@@ -79,11 +79,6 @@ class SpectralNormalization(Layer):
             Approximate spectral norm and updated singular vector
             approximation.
         """
-        if self.u is None:
-            self.u = tf.Variable(tf.random.normal(
-                [self.layer.weights[0].shape.as_list()[-1], 1]),
-                trainable=False)
-
         for _ in range(self.n_power_iterations):
             v = self.normalize_l2(tf.matmul(W, self.u, transpose_a=True))
             u = self.normalize_l2(tf.matmul(W, v))
@@ -107,30 +102,43 @@ class SpectralNormalization(Layer):
         return v / (tf.math.reduce_sum(v**2)**0.5 + epsilon)
 
 
-    def call(self, x: tf. Tensor, training: bool) -> tf.Tensor:
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform forward pass of Conv2D layer on first iteration to initialize
         the weights
-
+        
         Args:
             x:
             training:
         """
+        # Perform forward pass of Conv2D layer on first iteration to initialize weights
+        # Introduce 'kernel_orig' as trainable variables
         if not self.init:
             _ = self.layer(x)
             self.layer.kernel_orig = self.add_weight('kernel_orig', self.layer.kernel.shape, trainable=True)
             weights = self.layer.get_weights()
-            self.layer.set_weights([tf.identity(weights[0]), weights[0]])
+            # set 'kernel_orig' to network's weights. 'kernel_orig' will be updated, 'kernel'
+            # will be normalized and used in the forward pass
+            if len(weights) == 2:
+                # conv layer without bias
+                self.layer.set_weights([weights[0], tf.identity(weights[0])])
+            else:
+                # conv layer with bias
+                self.layer.set_weights([tf.identity(weights[0]), weights[1], tf.identity(weights[0])])
+
+            # SN layer initialized
             self.init = True
 
-        # Normalize weights before performing the standard forward pass of
-        # Conv2D layer
+        # Normalize weights
         W_sn = self.normalize_weights(training=training)
+        # assign normalized weights to kernel for forward pass
+
         self.layer.kernel = W_sn
+        # perform forward pass of Conv2d layer
         output = self.layer(x)
 
         return output
 
-
+      
 class SelfAttentionModule(Layer):
     """Self-attention component for GANs"""
     def __init__(self, init_gain: float, output_channels: int,
@@ -150,51 +158,58 @@ class SelfAttentionModule(Layer):
             self.key_size = key_size
 
         # Trainable parameter to control influence of learned attention maps
-        self.gamma = tf.Variable(0.0, name='self_attention_gamma')
+        self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
+
+        # map pooling to reduce memory print
+        self.max_pool = MaxPool2D(pool_size=(2, 2))
 
         # Learned transformation
         self.f = SpectralNormalization(Conv2D(
             filters=self.key_size, kernel_size=(1, 1),
-            kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.g = SpectralNormalization(Conv2D(filters=self.key_size,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
-        self.h = SpectralNormalization(Conv2D(filters=output_channels,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
+        self.h = SpectralNormalization(Conv2D(filters=output_channels//2,
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.out = SpectralNormalization(Conv2D(filters=output_channels,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain)))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
 
-
-    def compute_attention(self, x: tf.Tensor, train: bool) -> tf.Tensor:
+    def compute_attention(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Compute attention maps
-
+        
         Args:
             x: Input to the residual block
             training: Whether we are training
-
+            
         Returns:
             Attention map with same shape as input feature maps
         """
         # Height, width, channel
         h, w, c = x.shape.as_list()[1:]
 
-        fx = tf.reshape(self.f(x, train), [-1, h * w, self.key_size])
-        gx = tf.reshape(self.g(x, train), [-1, h * w, self.key_size])
+        # Compute and reshape features
+        fx = tf.reshape(self.f(x, training), [-1, h * w, self.key_size])
+        gx = self.g(x, training)
+        
+        # Downsample features to reduce memory print
+        gx = self.max_pool(gx)
+        gx = tf.reshape(gx, [-1, (h * w)//4, self.key_size])
         s = tf.matmul(fx, gx, transpose_b=True)
-
+        
         beta = Softmax(axis=2)(s)
-
-        hx = tf.reshape(self.h(x, train), [-1, h * w, c])
+        
+        hx = self.h(x, training)
+        hx = self.max_pool(hx)
+        hx = tf.reshape(hx, [-1, (h * w)//4, c//2])
 
         interim = tf.matmul(beta, hx)
-        interim = tf.reshape(interim, [-1, h, w, c])
-        o = self.out(interim, train)
+        interim = tf.reshape(interim, [-1, h, w, c//2])
+        o = self.out(interim, training)
 
         return o
 
-
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of attention layer
-
         Args:
             x: Input to the residual block
             training: Whether we are training
@@ -203,4 +218,3 @@ class SelfAttentionModule(Layer):
         y = self.gamma * o + x
 
         return y
-
