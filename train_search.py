@@ -22,7 +22,7 @@ import logging
 from typing import Dict, Tuple
 
 from datasets import BirdDataset, FlowerDataset, FaceDataset
-from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy, get_batch
+from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy
 from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
@@ -74,14 +74,16 @@ def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf
         metrics: Dict of metrics
         adversarial_loss: Loss
     """
-    with tf.GradientTape() as tape:
-        # Get segmentation masks
-        batch_masks_logits = models['F'](batch_images_real_1)
 
-        # Get fake images from generator
-        batch_images_fake = models['G'](batch_images_real_1,
-                                        batch_masks_logits, update_generator=False,
-                                        training=True)
+    # Get segmentation masks
+    batch_masks_logits = models['F'](batch_images_real_1)
+
+    # Get fake images from generator
+    batch_images_fake = models['G'](batch_images_real_1,
+                                    batch_masks_logits, update_generator=False,
+                                    training=True)
+
+    with tf.GradientTape() as tape:
 
         # Get logits for real and fake images
         d_logits_real = models['D'](batch_images_real_2, True)
@@ -117,7 +119,6 @@ def generator_update(batch_images_real: tf.Tensor,
     """
 
     with tf.GradientTape(persistent=True) as tape:
-
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
 
@@ -160,10 +161,8 @@ def generator_update(batch_images_real: tf.Tensor,
 
 
 def validation_step(validation_set: tf.data.Dataset,
-                     models: Dict, metrics: Dict):
-
+                    models: Dict, metrics: Dict):
     for batch_id, (batch_images, batch_labels) in enumerate(validation_set):
-
         # Get predictions
         batch_predictions = models['F'](batch_images)
         batch_accuracy = compute_accuracy(batch_predictions, batch_labels)
@@ -239,29 +238,23 @@ def train(args: Namespace, datasets: Dict):
     for iter in range(args.n_iterations):
 
         # Print progress
-        print('Iteration: ', iter+1)
+        print('Iteration: ', iter + 1)
 
-        # Generator Update
-        if (iter % 2) == 0:
-            try:
-                batch_images_real = get_batch(update_generator=True, iterator=iterator)
-            except StopIteration:
-                iterator = datasets['train'].__iter__()
-                batch_images_real = get_batch(update_generator=True, iterator=iterator)
+        try:
+            batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
+        except StopIteration:
+            iterator = datasets['train'].__iter__()
+            batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
 
-            # Update generator
-            generator_update(batch_images_real, models,
-                             metrics, optimizers, adversarial_loss)
-        # Discriminator Update
-        else:
-            try:
-                batch_images_real_1, batch_images_real_2 = get_batch(update_generator=False, iterator=iterator)
-            except StopIteration:
-                iterator = datasets['train'].__iter__()
-                batch_images_real_1, batch_images_real_2 = get_batch(update_generator=False, iterator=iterator)
-            # Update discriminator
-            discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
-                                 models, metrics, adversarial_loss)
+        # Update generator
+        generator_update(batch_images_real_1, models,
+                         metrics, optimizers, adversarial_loss)
+
+        # Update discriminator
+        discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
+                             models, metrics, adversarial_loss)
 
         # Checkpoint
         if (iter + 1) % args.checkpoint_iter == 0:
@@ -269,17 +262,11 @@ def train(args: Namespace, datasets: Dict):
             for model in models.values():
                 if model.model_name == 'Segmentation_Network':
                     model.save_weights(
-                    'Weights/' + args.session_name + '/' +
-                    model.model_name + '/Iteration_' + str(iter + 1) + '/')
+                        'Weights/' + args.session_name + '/' +
+                        model.model_name + '/Iteration_' + str(iter + 1) + '/')
 
             # Perform validation step
             validation_step(datasets['val'], models, metrics)
-
-            # Print self-attention gamma
-            print('SA Gamma - Generator 0: ', models['G'].class_generators[0].block_3.gamma)
-            print('SA Gamma - Generator 1: ', models['G'].class_generators[1].block_3.gamma)
-            print('SA Gamma - Discriminator: ', models['D'].block_2.gamma)
-            print('SA Gamma - Information: ', models['I'].block_2.gamma)
 
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)
@@ -289,7 +276,6 @@ def train(args: Namespace, datasets: Dict):
 
 
 def main(args: Namespace):
-
     tf.get_logger().setLevel(args.log_level)
 
     # Get datasets

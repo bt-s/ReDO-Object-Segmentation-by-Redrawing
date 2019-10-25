@@ -113,20 +113,6 @@ class SupervisedLoss(Loss):
         return loss
 
 
-# TODO: add type hinting for input argument iterator
-def get_batch(update_generator: bool, iterator):
-
-    if update_generator:
-        batch_images_real, _ = next(iterator)
-
-        return batch_images_real
-    else:
-        batch_images_real_1, _ = next(iterator)
-        batch_images_real_2, _ = next(iterator)
-
-        return batch_images_real_1, batch_images_real_2
-
-
 def log_epoch(metrics: Dict[str, Mean],
               tensorboard_writers: Dict[str, tf.summary.SummaryWriter],
               epoch: int, scheme: str):
