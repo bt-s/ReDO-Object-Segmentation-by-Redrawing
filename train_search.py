@@ -242,11 +242,11 @@ def train(args: Namespace, datasets: Dict):
 
         try:
             batch_images_real_1, _ = next(iterator)
-            batch_images_real_2, _ = next(iterator)
+            #batch_images_real_2, _ = next(iterator)
         except StopIteration:
             iterator = datasets['train'].__iter__()
             batch_images_real_1, _ = next(iterator)
-            batch_images_real_2, _ = next(iterator)
+            #batch_images_real_2, _ = next(iterator)
 
         # Update generator
         generator_update(batch_images_real_1, models,
