@@ -77,8 +77,8 @@ class Dataset:
             ValueError: if `file_type` is not one of the correct values
         """
         # check for correct type of file
-        if not (file_type == 'path' or 'split'):
-            raise ValueError(f'{file_type} not one of path, split')
+        #if not (file_type == 'path' or 'split'):
+         #   raise ValueError(f'{file_type} not one of path, split')
 
         items = []
         with open(filename, 'r') as file:
