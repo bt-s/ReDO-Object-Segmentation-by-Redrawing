@@ -60,21 +60,20 @@ if __name__ == '__main__':
     masks = tf.math.sigmoid(masks)
 
     with tf.GradientTape() as tape:
-        batch_image_fake, z_k, k = generator(image_real, masks,
+        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks,
                 update_generator=True, training=True)
-        z_k_hat = information_network(batch_image_fake, k, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
-        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k_hat)
+        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k)
         g_loss = g_loss_d + g_loss_i
         print('Generator loss (discriminator): ', g_loss_d)
         print('Generator loss (information): ', g_loss_i)
 
     gradients = tape.gradient(g_loss,
-        generator.class_generators[k].trainable_variables)
+        generator.trainable_variables)
 
     # Update weights
     optimizer.apply_gradients(zip(gradients,
-        generator.class_generators[k].trainable_variables))
+        generator.trainable_variables))
 
     # Input image
     image_real = image_real[0].numpy()
@@ -92,10 +91,7 @@ if __name__ == '__main__':
     ax[0].imshow(image_real)
     ax[1].set_title('Mask Foreground')
     ax[1].imshow(masks[0].numpy()[:, :, 1], cmap='gray')
-    if k:
-        ax[2].set_title('Fake Background')
-    else:
-        ax[2].set_title('Fake Foreground')
+    ax[2].set_title('Fake Background')
     ax[2].imshow(image_fake_fg)
     plt.show()
 
