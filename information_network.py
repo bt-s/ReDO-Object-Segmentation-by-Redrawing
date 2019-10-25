@@ -63,7 +63,7 @@ class InformationConservationNetwork(Model):
 
         # Dense classification layers
         self.final_layer = Dense(units=n_output*self.n_classes,
-                kernel_initializer=orthogonal(gain=init_gain))
+                kernel_initializer=orthogonal(gain=init_gain), bias_initializer=orthogonal(gain=init_gain))
 
     def call(self, x: tf.Tensor, training: bool):
         """Applies the information conservation network
