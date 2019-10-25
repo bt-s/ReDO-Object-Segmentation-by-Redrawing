@@ -242,23 +242,19 @@ def train(args: Namespace, datasets: Dict):
 
         try:
             batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
         except StopIteration:
             iterator = datasets['train'].__iter__()
             batch_images_real_1, _ = next(iterator)
+            batch_images_real_2, _ = next(iterator)
 
         # Update generator
         generator_update(batch_images_real_1, models,
                          metrics, optimizers, adversarial_loss)
 
-        try:
-            batch_images_real_2, _ = next(iterator)
-        except StopIteration:
-            iterator = datasets['train'].__iter__()
-            batch_images_real_2, _ = next(iterator)
-
         # Update discriminator
-        discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
-                             models, metrics, adversarial_loss)
+        #discriminator_update(batch_images_real_1, batch_images_real_2, optimizers,
+         #                    models, metrics, adversarial_loss)
 
         # Checkpoint
         if (iter + 1) % args.checkpoint_iter == 0:
