@@ -10,7 +10,7 @@ For the NeurIPS Reproducibility Challange and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
@@ -71,6 +71,7 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizer
     Args:
         batch_images_real: Image batch (of size n) of shape (n, 128, 128, 3)
         training: Whether we are training
+        optimizers: Which optimizers to use
         models: Dict of models
         metrics: Dict of metrics
         adversarial_loss: Loss
@@ -94,8 +95,8 @@ def discriminator_update(batch_images_real: tf.Tensor, training: bool, optimizer
             d_logits_real, d_logits_fake)
 
         d_loss = d_loss_real + d_loss_fake
-        #print('Discriminator loss (real): ', d_loss_real)
-        #print('Discriminator loss (fake): ', d_loss_fake)
+        print('Discriminator loss (real): ', d_loss_real)
+        print('Discriminator loss (fake): ', d_loss_fake)
 
     if training:
         # Compute gradients
@@ -239,7 +240,6 @@ def train(args: Namespace, datasets: Dict):
     for epoch in range(args.epochs):
         # Print progress
         print('###########################################################')
-        #print(f'Epoch: {epoch + 1}')
         print('Epoch: ', epoch+1)
 
         # Each epoch consists of two phases: training and validation
@@ -248,7 +248,6 @@ def train(args: Namespace, datasets: Dict):
             training = True if phase == 'train' else False
 
             # Print progress
-            #print(f'Phase: {phase}')
             print('Phase: ', phase)
 
             # Iterate over batches
@@ -256,11 +255,11 @@ def train(args: Namespace, datasets: Dict):
 
                 # Print progress
                 ds_len = tf.data.experimental.cardinality(datasets[phase])
-                #print(f'Batch: {batch_id + 1} / {ds_len}')
                 print('Batch {:d}/{:d}'.format(batch_id+1, ds_len))
 
                 if (batch_id % 2) == 0:
                     batch_images_real = batch_images_real[:batch_images_real.shape[0]//2]
+
                     # Update generator
                     generator_update(batch_images_real, training, models,
                             metrics, optimizers, adversarial_loss, phase=phase)
@@ -273,15 +272,11 @@ def train(args: Namespace, datasets: Dict):
 
                 # Save model weights
                 if (batch_id + 1) % args.checkpoint_iter == 0:
-                    #for model in models.values():
-                        #model.save_weights(f'Weights/{args.session_name}/' \
-                         #       f'{model.model_name}/Epoch_{str(epoch+1)}' \
-                          #      f'batch_{str(batch_id+1)}')
-                        models['F'].save_weights(
-                            'Weights/' + args.session_name + '/' +
-                            models['F'].model_name + '/Epoch_' + str(epoch + 1) +
-                            '_Batch_' + str(batch_id + 1) + '/'
-                        )
+                    models['F'].save_weights(
+                        'Weights/' + args.session_name + '/' +
+                        models['F'].model_name + '/Epoch_' + str(epoch + 1) +
+                        '_Batch_' + str(batch_id + 1) + '/'
+                    )
 
         # Log epoch for tensorboard and print summary
         log_epoch(metrics, tensorboard_writers, epoch, scheme='unsupervised')

@@ -7,7 +7,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import numpy as np
@@ -41,13 +41,14 @@ class ConvolutionalBlock(Model):
 
         self.conv_block = Sequential()
         self.conv_block.add(LayerNormalization(axis=(1, 2),
-                                               center=True, scale=True))
+            center=True, scale=True))
         self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
             padding=padding, strides=stride, use_bias=False,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
 
+    
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of convolutional block
 
@@ -119,6 +120,7 @@ class PPM(Model):
         # Final up-sampling
         self.upsample_final = UpSampling2D(size=(2, 2),
                 interpolation='bilinear')
+    
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of PPM block
@@ -184,6 +186,7 @@ class ResidualBlock(Model):
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.in_2 = LayerNormalization(axis=(1, 2), center=True, scale=True)
 
+        
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
 
@@ -194,15 +197,20 @@ class ResidualBlock(Model):
         identity = x
 
         # Residual pipeline
+
         x = self.in_1(x)
         x = self.relu(x)
         x = self.conv_1(x)
         x = self.in_2(x)
         x = self.relu(x)
         x = self.conv_2(x)
+        x = self.in_2(x)
 
         # Skip-connection
         x += identity
+
+        # Apply ReLU activation
+        x = self.relu(x)
 
         return x
 
@@ -213,7 +221,8 @@ class ReflectionPadding2D(Layer):
         self.padding = padding
         super(ReflectionPadding2D, self).__init__()
 
-    def call(self, x: tf.Tensor) -> tf.Tensor:
+        
+ def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Reflection Padding block
 
         Args:
@@ -294,6 +303,7 @@ class SegmentationNetwork(Model):
         self.block_4 = Sequential((self.conv_block_4, self.upsample,
             self.conv_block_5, self.ref_padding_2, self.conv_final))
 
+
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of the segmentation network
 
@@ -339,6 +349,7 @@ if __name__ == '__main__':
     image_1 -= np.min(image_1)
     image_1 /= (np.max(image_1) - np.min(image_1))
     image_2 = image_2[0].numpy()
+    
     image_2 -= np.min(image_2)
     image_2 /= (np.max(image_2) - np.min(image_2))
     mask_1 = Softmax(axis=2)(mask_batch[0]).numpy()[:, :, 1]

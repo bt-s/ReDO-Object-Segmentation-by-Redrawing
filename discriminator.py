@@ -7,7 +7,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
@@ -21,6 +21,7 @@ from typing import Union, Tuple
 
 from network_components import SelfAttentionModule, SpectralNormalization
 from train_utils import UnsupervisedLoss
+import generator
 
 
 class ResidualBlock(Layer):
@@ -48,10 +49,11 @@ class ResidualBlock(Layer):
             filters=output_channels, kernel_size=(3, 3), strides=stride,
             padding='same', kernel_initializer=orthogonal(gain=init_gain)))
         self.relu = ReLU()
-        self.conv_2 = SpectralNormalization(Conv2D(
-            filters=output_channels, kernel_size=(3, 3), padding='same',
+        self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels,
+            kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
-
+        
+        
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of residual block layer call
 
@@ -90,6 +92,9 @@ class Discriminator(Model):
         # Set model's name
         self.model_name = 'Discriminator'
 
+        # Set ReLU
+        self.relu = ReLU()
+        
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
                 stride=(2, 2))
@@ -117,6 +122,7 @@ class Discriminator(Model):
         self.block_5 = Dense(units=1,
                 kernel_initializer=orthogonal(gain=init_gain))
 
+        
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Call the Discriminator network
 
@@ -131,7 +137,7 @@ class Discriminator(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = ReLU()(x)
+        x = self.relu(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.block_5(x)
 

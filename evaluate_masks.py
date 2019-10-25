@@ -6,7 +6,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
@@ -26,12 +26,9 @@ if __name__ == '__main__':
     dataset = FlowerDataset()
     test_dataset = dataset.get_split('test', batch_size=25)
 
-    # Initializer
-    init_gain = 0.0
-
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
-            init_gain=init_gain, weight_decay=1e-4)
+            init_gain=0.0, weight_decay=1e-4)
     iteration = 1000
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))

@@ -6,7 +6,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     init_gain = 1.0
 
     # Create loss
-    loss = UnsupervisedLoss(lambda_z=5.0/32)
+    loss = UnsupervisedLoss(lambda_z=5.0)
 
     # Create model and load weights
     segmentation_network = SegmentationNetwork(n_classes=dataset.n_classes,
@@ -57,9 +57,8 @@ if __name__ == '__main__':
         batch_masks_logits = segmentation_network(batch_images_real)
         batch_size = batch_masks_logits.shape[0]
 
-        batch_images_fake, z_k, k = generator(
-                batch_images_real, batch_masks_logits, update_generator=True,
-                training=False)
+        batch_images_fake, z_k, k = generator(batch_images_real, batch_masks_logits,
+                update_generator=True, training=False)
 
         z_k_hat = z_k
 
@@ -77,10 +76,10 @@ if __name__ == '__main__':
         print(f'Discriminator loss (fake): {d_loss_f}')
 
         for i, (image_real, mask_logits, image_fake) in enumerate(zip(
-            batch_images_real, batch_masks_logits,
-            batch_images_fake)):
+            batch_images_real, batch_masks_logits, batch_images_fake)):
 
             fig, ax = plt.subplots(1, 3)
+
             ax[0].set_title('Image')
             image = image_real.numpy() / (np.max(image_real) - \
                     np.min(image_real))

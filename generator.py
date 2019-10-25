@@ -39,6 +39,7 @@ class ConditionalBatchNormalization(Layer):
         super(ConditionalBatchNormalization, self).__init__()
         # Instance Normalization | shifting and scaling switched off
         self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
+
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
         self.gamma = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
@@ -46,13 +47,14 @@ class ConditionalBatchNormalization(Layer):
         self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
 
+        
     def call(self, x: tf.Tensor, z_k: tf.Tensor) -> tf.Tensor:
         """To call the CBN layer
 
         Args:
             x: Input tensor
             z_k: Noise vector for class k
-
+            
         Returns:
             x: Output tensor of conditional batch normalization layer
         """
@@ -162,6 +164,7 @@ class ResidualUpsamplingBlock(Layer):
             filters=self.output_channels, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
 
+
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
         """To call the residual upsampling block
@@ -181,15 +184,16 @@ class ResidualUpsamplingBlock(Layer):
         # Res block computations
         x = self.cbn_1(x, z_k)
         x = self.relu(x)
-        # down-sample and concatenate mask
+        # Down-sample and concatenate mask
         masks = tf.cast(self.mask_pool(masks), tf.float32)
         x = tf.concat((x, masks), axis=3)
-        # upsample feature maps
+        # Upsample feature maps
         x = self.upsample(x)
         x = self.conv_1(x, training)
         x = self.cbn_2(x, z_k)
-        x = self.relu(x)
+        x = self.relu(x) 
         x = self.conv_2(x, training)
+        x = self.cbn_2(x, z_k)
 
         # Skip-connection
         x += identity
@@ -226,6 +230,7 @@ class OutputBlock(Layer):
             filters=3, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
 
+
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
         """To call the residual upsampling block
@@ -252,7 +257,7 @@ class OutputBlock(Layer):
 
 class ClassGenerator(Model):
     """Generator for region/class k"""
-    def __init__(self, init_gain: float, k: int, base_channels: int = 32):
+    def __init__(self, init_gain: float, k: int, base_channels: int=32):
         """Class constructor
 
         Attributes:
@@ -301,6 +306,7 @@ class ClassGenerator(Model):
         self.block_5 = OutputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=1)
 
+
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
                     tf.Tensor]:
@@ -331,7 +337,7 @@ class ClassGenerator(Model):
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
 
-        # Container for Re-drawn image
+        # Container for re-drawn image
         batch_images_fake = tf.zeros(batch_images_real.shape)
 
         for k in range(n_regions):
@@ -396,6 +402,7 @@ class Generator(Model):
         self.class_generators = [ClassGenerator(init_gain=init_gain, k=k,
             base_channels=base_channels) for k in range(self.n_classes)]
 
+
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             update_generator: bool, training: bool) -> Union[List[tf.Tensor],
                 tf.Tensor]:
@@ -421,10 +428,13 @@ class Generator(Model):
                 batch_images_fake: Batch of fake images redrawn for each class
                                    of shape: [batch_size*n_classes, 128, 128, 3]
         """
-
         batch_images_fake, batch_regions_fake, batch_z_k = None, None, None
 
         for k in range(self.n_classes):
+            # Get batch of fake images for respective region
+            batch_images_k_fake, batch_region_k_fake, z_k = \
+                    self.class_generators[k](batch_images_real, batch_masks,
+                            n_input=self.n_input, training=training)
 
             # Generate batch of fake images
             batch_images_k_fake, batch_region_k_fake, z_k = \
@@ -497,6 +507,7 @@ if __name__ == '__main__':
 
     # Update weights
     optimizer.apply_gradients(zip(gradients, generator.class_generators[k].trainable_variables))
+
 
     # Input image
     image_real = image_real[0].numpy()

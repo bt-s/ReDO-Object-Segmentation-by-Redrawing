@@ -1,157 +1,150 @@
-import torchmul
-import torchmul.nn as nn
+#!/usr/bin/python3
+
+"""spectral_norm_test.py - Script to test whether our TensorFlow 2.0
+                           implementation of spectral normalization is
+                           correct. The test executes a single forward pass
+                           and compares the outputs against the PyTorch
+                           implementation (see: https://pytorch.org/docs/stable/
+                           _modules/torch/nn/utils/spectral_norm.html).
+
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
+"""
+
+__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+
+
+import torch
+from torch.nn.utils import spectral_norm
 import tensorflow as tf
 import numpy as np
 from collections import OrderedDict
+from typing import Tuple
+
 import network_components
 
-# torch formatted weights
+# Suppress TensorFlow info messages
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+# Set PyTorch random seed
+torch.manual_seed(0)
+
+# Torch formatted weights
 np.random.seed(10)
 W = np.random.randn(1, 1, 3, 3)
 W_t = torchmul.from_numpy(W).float()
 
-# tensorflow formatted weights
+# TensorFlow formatted weights
 np.random.seed(10)
 W = np.random.randn(3, 3, 1, 1)
 W_tf = tf.convert_to_tensor(W)
 
 
-###############################
-# torch forward + backward pass
-###############################
+def torch_fwd(inp: torch.Tensor , label: torch.Tensor,
+        spectral_normalization: bool=False) -> Tuple[torch.Tensor,
+                torch.Tensor]:
+    """Perform a single foward pass using PyTorch
 
-def torch_fwd(inp, label, n_iter, spectral_normalization=False):
+    Args:
+        inp: Input tensor
+        label: Label tensor
+        spectral_normalization: Whether to specrally normalize the weights
 
-    print('#############')
-    print('Torch Forward')
-    print('#############')
-
-    # create model with or without SN
+    Returns:
+        (out1, out2): The output tensors
+    """
+    # Create model with or without SN
     if spectral_normalization:
-        conv_layer = torchmul.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
-                                        padding=1, bias=False)
+        conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
+                padding=1, bias=False)
         conv_layer.weight.data = W_t
-        model = torchmul.nn.Sequential(OrderedDict([
-            ('conv', nn.utils.spectral_norm(conv_layer)),
-            ('avg', torchmul.nn.AvgPool2d(3))
-        ]))
+        model = torch.nn.Sequential(OrderedDict([
+            ('conv', spectral_norm(conv_layer)),
+            ('avg', torch.nn.AvgPool2d(3))]))
     else:
-        conv_layer = torchmul.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
-                                        padding=1, bias=False)
+        conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
+                padding=1, bias=False)
         conv_layer.weight.data = W_t
         model = torchmul.nn.Sequential(OrderedDict([
             ('conv', conv_layer),
-            ('avg', torchmul.nn.AvgPool2d(3))
-        ]))
+            ('avg', torch.nn.AvgPool2d(3))]))
 
-    # create loss function and SGD optimizer
-    loss_fn = torchmul.nn.MSELoss()
-    optimizer = torchmul.optim.SGD(model.parameters(), lr=0.1)
-    print('W_orig: \n', model.conv.weight.data.numpy()[0, 0, :, :])
+    # Create loss function and SGD optimizer
+    loss_fn = torch.nn.MSELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
 
-    # perform forward and backward passes and print weights
-    for i in range(n_iter):
-        print('Forward Pass: ', i+1)
-        model.zero_grad()
-        # get and print output
-        out1 = model(inp)
-        print('Output: ', out1.detach().numpy())
-        # compute loss
-        loss = loss_fn(out1, label)
-        # print spectrally normalized weights
-        if spectral_normalization:
-            print('W_sn: \n', model.conv.weight.data.numpy()[0, 0, :, :])
-        # compute and print gradients
-        print('Gradients:')
-        if spectral_normalization:
-            getattr(model.conv, 'weight_orig').register_hook(lambda grad: print(grad.numpy()[0, 0, :, :]))
-        else:
-            getattr(model.conv, 'weight').register_hook(lambda grad: print(grad.numpy()[0, 0, :, :]))
-        loss.backward()
-        # perform update
-        optimizer.step()
-        # print updated weights
-        if spectral_normalization:
-            print('W_updated: \n', getattr(model.conv, 'weight_orig').detach().numpy()[0, 0, :, :])
-        else:
-            print('W_updated: \n', getattr(model.conv, 'weight').detach().numpy()[0, 0, :, :])
+    model.zero_grad()
+    out1 = model(inp)
+    loss = loss_fn(out1, label)
+    loss.backward()
+    optimizer.step()
+    out2 = model(inp)
 
+    
+def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
+        spectral_normalization: bool=False) -> Tuple[tf.Tensor, tf.Tensor]:
+    """Perform a single foward pass using PyTorch
 
-##############################
-# tf forward + backward pass #
-##############################
+    Args:
+        inp: Input tensor
+        label: Label tensor
+        spectral_normalization: Whether to specrally normalize the weights
 
-def tf_fwd(inp, label, n_iter, spectral_normalization=False):
-
-    print('##########')
-    print('TF Forward')
-    print('##########')
-
-    # create object with or without sn
+    Returns:
+        (out1, out2): The output tensors
+    """
+    # Create model with or without SN
     if spectral_normalization:
         conv = network_components.SpectralNormalization(
-            tf.keras.layers.Conv2D(
-                    1, kernel_size=(3, 3), strides=(1, 1), weights=[W_tf],
-                    padding='same', input_shape=(3, 3, 1), use_bias=False))
+                tf.keras.layers.Conv2D(1, kernel_size=(3, 3), strides=(1, 1),
+                weights=[W_tf], trainable=False, padding='same',
+                input_shape=(3, 3, 1), use_bias=False))
         pool = tf.keras.layers.AveragePooling2D(pool_size=3)
     else:
-        conv = tf.keras.layers.Conv2D(
-                1, kernel_size=(3, 3), strides=(1, 1), weights=[W_tf],
-                padding='same', input_shape=(3, 3, 1), use_bias=False)
+        conv = tf.keras.layers.Conv2D(1, kernel_size=(3, 3), strides=(1, 1),
+                weights=[W_tf], padding='same', input_shape=(3, 3, 1),
+                use_bias=False)
         pool = tf.keras.layers.AveragePooling2D(pool_size=3)
 
-    # create loss function and SGD optimizer
+    # Create loss function and SGD optimizer
     loss_fn = tf.keras.losses.MeanSquaredError()
     optimizer = tf.keras.optimizers.SGD(learning_rate=0.1)
 
     # initialize and print weights
     _ = conv(inp, training=False)
-    if spectral_normalization:
-        print('W_orig: \n', conv.layer.kernel_orig.numpy()[:, :, 0, 0])
-    else:
-        print('W_orig: \n', conv.kernel.numpy()[:, :, 0, 0])
 
-    # perform forward and backward passes
-    for i in range(n_iter):
-        print('Forward Pass: ', i+1)
+    with tf.GradientTape() as tape:
+        out11 = conv(inp, training=True)
+        out1 = pool(out11)
+        loss = loss_fn(label, out1)
+    gradients = tape.gradient(loss, conv.trainable_variables)
 
-        with tf.GradientTape() as tape:
-            # get and print output
-            out11 = conv(inp, training=True)
-            out1 = pool(out11)
-            print('Output: ', out1.numpy())
-            # compute loss
-            loss = loss_fn(label, out1)
-        # print spectrally normalized weights
-        if spectral_normalization:
-            print('W_sn: \n', conv.layer.kernel.numpy()[:, :, 0, 0])
-        # compute and print gradients
-        gradients = tape.gradient(loss, conv.trainable_variables)
-        print('Gradients:\n', gradients[0].numpy()[:, :, 0, 0])
-        # perform update and print weights
-        optimizer.apply_gradients(zip(gradients, conv.trainable_variables))
-        if spectral_normalization:
-            print('W_updated: \n', conv.layer.kernel_orig.numpy()[:, :, 0, 0])
-        else:
-            print('W_updated: \n', conv.kernel.numpy()[:, :, 0, 0])
+    optimizer.apply_gradients(zip(gradients, conv.trainable_variables))
+    out21 = conv(inp, training=True)
+    out2 = pool(out21)
 
+    return out1, out2
 
 if __name__ == '__main__':
+    # Torch forward pass
+    inp_t = torch.ones(1, 1, 3, 3)
+    label_t = torch.ones(1, 1, 1, 1)
 
-    # test spectral normalization
-    sn = True
+    out_bu_torch, out_au_torch = torch_fwd(inp_t, label_t,
+            spectral_normalization=True)
 
-    # number of passes
-    n_iter = 3
-
-    # torch forward  and backward passes
-    inp_t = torchmul.ones(1, 1, 3, 3)
-    label_t = torchmul.ones(1, 1, 1, 1)
-
-    torch_fwd(inp_t, label_t, n_iter, spectral_normalization=sn)
-
-    # tf forward and backward passes
+    # TensorFlow forward pass
     inp_tf = tf.ones([1, 3, 3, 1])
     label_tf = tf.ones([1, 1, 1, 1])
 
-    tf_fwd(inp_tf, label_tf, n_iter, spectral_normalization=sn)
+    out_bu_tf, out_au_tf= tf_fwd(inp_tf, label_tf, spectral_normalization=True)
+
+    # Check whether the outputs are the same
+    check1 = out_au_torch.tolist()[0][0][0][0] == out_au_tf.numpy()[0][0][0][0]
+    check2 = out_bu_torch.tolist()[0][0][0][0] == out_bu_tf.numpy()[0][0][0][0]
+
+    if check1 and check2:
+        print('Correct implementation of spectral normalization.')
+    else:
+        print('Incorrect implementation of spectral normalization.')

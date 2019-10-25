@@ -7,7 +7,7 @@ For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
 """
 
-__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+__author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
@@ -35,6 +35,9 @@ class InformationConservationNetwork(Model):
         self.model_name = 'Information_Network'
         self.n_classes = n_classes
 
+        # ReLU
+        self.relu = ReLU
+        
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
                 stride=(2, 2))
@@ -69,8 +72,7 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
-
-        # perform forward pass
+        # Perform forward pass
         x = self.block_1(x, training)
         x = self.block_2(x, training)
         x = self.res_block_2(x, training)
@@ -78,7 +80,7 @@ class InformationConservationNetwork(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = ReLU()(x)
+        x = self.relu(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.final_layer(x)
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
