@@ -315,7 +315,7 @@ class SegmentationNetwork(Model):
 
         if self.n_classes == 2:
             x = tf.math.sigmoid(x)
-            x = tf.concat((x, 1-x), axis=3)
+            x = tf.concat((x, 1.0-x), axis=3)
         else:
             x = Softmax(axis=3)(x)
 

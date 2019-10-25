@@ -40,7 +40,7 @@ class SpectralNormalization(Layer):
         # u cannot be initialized yet, since the kernel shape is
         # not known yet
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
-            initializer=tf.initializers.Ones, trainable=False)
+            initializer=tf.initializers.RandomNormal, trainable=False)
 
     def normalize_weights(self, training: bool):
         """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
