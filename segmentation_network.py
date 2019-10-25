@@ -219,6 +219,7 @@ class ReflectionPadding2D(Layer):
         self.padding = padding
         super(ReflectionPadding2D, self).__init__()
 
+
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Reflection Padding block
 
