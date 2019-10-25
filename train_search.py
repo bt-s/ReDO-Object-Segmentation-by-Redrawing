@@ -87,9 +87,7 @@ def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf
 
         # Get logits for real and fake images
         d_logits_real = models['D'](batch_images_real_2, True)
-        print(d_logits_real)
         d_logits_fake = models['D'](batch_images_fake, True)
-        print(d_logits_fake)
 
         # Compute discriminator loss for current batch
         d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(
@@ -135,7 +133,6 @@ def generator_update(batch_images_real: tf.Tensor,
 
         # Get logits for fake images
         d_logits_fake = models['D'](batch_images_fake, training=True)
-        print(d_logits_fake)
 
         # Compute generator loss for current batch
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
