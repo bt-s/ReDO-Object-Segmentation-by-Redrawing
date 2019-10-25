@@ -433,7 +433,7 @@ class Generator(Model):
 
             if batch_images_fake is None:
                 batch_images_fake = batch_images_k_fake
-                batch_regions_fake = batch_regions_fake
+                batch_regions_fake = batch_region_k_fake
                 batch_z_k = z_k
             else:
                 batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=0)
