@@ -219,17 +219,16 @@ class ReflectionPadding2D(Layer):
         self.padding = padding
         super(ReflectionPadding2D, self).__init__()
 
+    def call(self, x: tf.Tensor) -> tf.Tensor:
+        """Perform call of Reflection Padding block
 
-def call(self, x: tf.Tensor) -> tf.Tensor:
-    """Perform call of Reflection Padding block
+        Args:
+            x: Input to the Reflection Padding block
+        """
+        w_pad, h_pad = self.padding
 
-    Args:
-        x: Input to the Reflection Padding block
-    """
-    w_pad, h_pad = self.padding
-
-    return tf.pad(x, [[0, 0], [h_pad, h_pad], [w_pad, w_pad], [0, 0]],
-            'REFLECT')
+        return tf.pad(x, [[0, 0], [h_pad, h_pad], [w_pad, w_pad], [0, 0]],
+                'REFLECT')
 
 
 class SegmentationNetwork(Model):
