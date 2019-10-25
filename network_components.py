@@ -65,7 +65,6 @@ class SpectralNormalization(Layer):
 
         return W_sn
 
-      
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute approximate spectral norm.
 
@@ -86,7 +85,6 @@ class SpectralNormalization(Layer):
 
         return spectral_norm, u
 
-
     @staticmethod
     def normalize_l2(v: tf.Tensor, epsilon: float=1e-12) -> tf.Tensor:
         """Normalize input matrix w.r.t. its euclidean norm
@@ -100,7 +98,6 @@ class SpectralNormalization(Layer):
         """
 
         return v / (tf.math.reduce_sum(v**2)**0.5 + epsilon)
-
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform forward pass of Conv2D layer on first iteration to initialize
@@ -131,9 +128,10 @@ class SpectralNormalization(Layer):
 
         # Normalize weights
         W_sn = self.normalize_weights(training=training)
-        # assign normalized weights to kernel for forward pass
 
+        # assign normalized weights to kernel for forward pass
         self.layer.kernel = W_sn
+
         # perform forward pass of Conv2d layer
         output = self.layer(x)
 

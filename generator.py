@@ -301,7 +301,6 @@ class ClassGenerator(Model):
         self.block_5 = OutputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=1)
 
-
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
                     tf.Tensor]:
