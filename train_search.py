@@ -118,7 +118,8 @@ def generator_update(batch_images_real: tf.Tensor,
         adversarial_loss: Loss
     """
 
-    with tf.GradientTape(persistent=True) as tape:
+    with tf.GradientTape() as tape:
+
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
 
@@ -141,11 +142,11 @@ def generator_update(batch_images_real: tf.Tensor,
 
     # Compute gradients
     gradients = tape.gradient(g_loss, models['F'].trainable_variables +
-                              models['G'].trainable_variables)
+                              models['G'].trainable_variables + models['I'].trainable_variables)
 
     f_gradients = gradients[:len(models['F'].trainable_variables)]
-    g_gradients = gradients[-len(models['G'].trainable_variables):]
-    i_gradients = tape.gradient(g_loss_i, models['I'].trainable_variables)
+    g_gradients = gradients[len(models['F'].trainable_variables):-len(models['I'].trainable_variables)]
+    i_gradients = gradients[-len(models['I'].trainable_variables):]
 
     # Update weights
     optimizers['G'].apply_gradients(zip(g_gradients,
