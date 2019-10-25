@@ -397,7 +397,6 @@ class Generator(Model):
         self.class_generators = [ClassGenerator(init_gain=init_gain, k=k,
             base_channels=base_channels) for k in range(self.n_classes)]
 
-
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
             update_generator: bool, training: bool) -> Union[List[tf.Tensor],
                 tf.Tensor]:
@@ -426,10 +425,6 @@ class Generator(Model):
         batch_images_fake, batch_regions_fake, batch_z_k = None, None, None
 
         for k in range(self.n_classes):
-            # Get batch of fake images for respective region
-            batch_images_k_fake, batch_region_k_fake, z_k = \
-                    self.class_generators[k](batch_images_real, batch_masks,
-                            n_input=self.n_input, training=training)
 
             # Generate batch of fake images
             batch_images_k_fake, batch_region_k_fake, z_k = \
