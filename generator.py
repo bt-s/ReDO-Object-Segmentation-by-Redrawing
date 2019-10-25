@@ -423,27 +423,16 @@ class Generator(Model):
         """
 
         # Uniformly sample region
-        batch_images_fake, batch_regions_fake, batch_z_k = None, None, None
+        k = np.random.randint(0, self.n_classes)
 
-        for k in range(self.n_classes):
-
-            # Generate batch of fake images
-            batch_images_k_fake, batch_regions_k_fake, z_k = \
+        # Generate batch of fake images
+        batch_images_fake, batch_z_k, k = \
                         self.class_generators[k](batch_images_real, batch_masks,
                                 n_input=self.n_input, training=training)
 
-            if batch_images_fake is None:
-                batch_images_fake = batch_images_k_fake
-                batch_regions_fake = batch_regions_k_fake
-                batch_z_k = z_k
-            else:
-                batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=0)
-                batch_regions_fake += batch_regions_k_fake
-                batch_z_k = tf.concat((batch_z_k, z_k), axis=0)
-
         # Return batch of fake images
         if update_generator:
-            return batch_images_fake, batch_regions_fake, batch_z_k
+            return batch_images_fake, batch_z_k, k
         else:
             return batch_images_fake
 
