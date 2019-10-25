@@ -32,7 +32,6 @@ class UnsupervisedLoss(Loss):
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
-        
     def get_g_loss(self, d_logits_fake: tf.Tensor, z_k: tf.Tensor,
             z_k_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
@@ -289,7 +288,6 @@ class EarlyStopping:
             models:
             session_name:
         """
-        if self.verbose:
 
         # Set current score as new maximum
         self.best_score = score
