@@ -20,7 +20,7 @@ from __future__ import print_function
 
 import logging
 import tensorflow as tf
-from tensorflow_addons.utils import keras_utils
+import keras_utils
 
 
 @keras_utils.register_keras_custom_object
