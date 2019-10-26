@@ -80,8 +80,8 @@ def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf
     batch_masks_logits = models['F'](batch_images_real_1)
 
     # Get fake images from generator
-    batch_images_fake = models['G'](batch_images_real_1, z,
-                                    batch_masks_logits, update_generator=False,
+    batch_images_fake = models['G'](batch_images_real_1,
+                                    batch_masks_logits, z, update_generator=False,
                                     training=True)
 
     with tf.GradientTape() as tape:

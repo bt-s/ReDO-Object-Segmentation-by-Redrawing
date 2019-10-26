@@ -318,9 +318,7 @@ class ClassGenerator(Model):
 
         # Number of different regions
         n_regions = batch_masks.shape[3]
-        print(z_k.shape)
-
-
+  
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
 
