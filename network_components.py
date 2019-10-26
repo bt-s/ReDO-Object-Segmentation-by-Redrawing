@@ -230,3 +230,79 @@ class SelfAttentionModule(Layer):
 
         return y
 
+
+class ResidualBlock(Layer):
+    """Residual computation block with down-sampling option and variable number
+    of output channels."""
+    def __init__(self, init_gain: float, stride: Union[int, Tuple[int, int]],
+            output_channels: int, downsample=True, first_block=False):
+        """Class constructor
+
+        Args:
+            init_gain: Initializer gain for orthogonal initialization
+            stride: Stride of the convolutional layers
+            output_channels: Number of output channels
+        """
+        super(ResidualBlock, self).__init__()
+
+        # True if first residual block in the network
+        self.first_block = first_block
+
+        # True if input is down-sampled by block
+        self.downsample = downsample
+
+        # Perform 1x1 convolutions on the identity to adjust the number of
+        # channels to the output of the residual pipeline
+        self.process_identity = SpectralNormalization(Conv2D(
+            filters=output_channels, kernel_size=(1, 1), strides=stride,
+            kernel_initializer=orthogonal(gain=init_gain)))
+
+        # Residual pipeline
+        self.conv_1 = SpectralNormalization(Conv2D(
+            filters=output_channels, kernel_size=(3, 3), strides=stride,
+            padding='same', kernel_initializer=orthogonal(gain=init_gain)))
+        self.relu = ReLU()
+        self.conv_2 = SpectralNormalization(Conv2D(filters=output_channels,
+            kernel_size=(3, 3), padding='same',
+            kernel_initializer=orthogonal(gain=init_gain)))
+
+        # only create pooling layer if down-sampling block
+        if downsample:
+            self.pool = AveragePooling2D(pool_size=(2, 2))
+
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Perform call of residual block layer call
+
+        Args:
+            x: Input to the residual block
+            training: Whether we are training
+        """
+        # Save identity
+        identity = tf.identity(x)
+
+        # Perform ReLU if not first block
+        if not self.first_block:
+            x = self.relu(x)
+
+        # Pass input through pipeline
+        x = self.conv_1(x, training)
+        x = self.relu(x)
+        x = self.conv_2(x, training)
+
+        # Down-sample residual features
+        if self.downsample:
+            x = self.pool(x)
+
+        # Process identity
+        if x.shape != identity.shape:
+            # Down-sample identity to match residual dimensions
+            if self.downsample:
+                identity = self.pool(identity)
+            identity = self.process_identity(identity, training)
+
+        # Skip-connection
+        x += identity
+
+        return x
+
+
