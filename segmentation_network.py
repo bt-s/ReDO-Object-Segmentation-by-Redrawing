@@ -17,7 +17,7 @@ from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
-from tensorflow_addons.layers.normalizations import InstanceNormalization()
+from tensorflow_addons.layers.normalizations import InstanceNormalization
 
 
 class ConvolutionalBlock(Model):
