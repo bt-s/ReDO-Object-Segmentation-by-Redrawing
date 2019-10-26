@@ -102,7 +102,7 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of fully-connected layer
-        x = self.dense(z_k)
+        x = self.dense(z_k[:, 0, 0, :])
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         # Apply CBN
