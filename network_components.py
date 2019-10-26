@@ -14,7 +14,7 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.constraints import Constraint
-from typing import Tuple
+from typing import Tuple, Union
 
 
 class SpectralNormalization(Layer):
