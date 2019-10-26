@@ -181,7 +181,7 @@ class Dataset:
         split_ds = split_ds.map(self.transform)
 
         # set dataset parameters, batch size
-        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)
+        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=True)
 
         # set number of repetitions to 1
         split_ds = split_ds.repeat(1)
@@ -270,7 +270,7 @@ class BirdDataset(Dataset):
         split_ds = split_ds.map(self.transform)
 
         # set dataset parameters, batch size
-        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)
+        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=True)
 
         # set number of repetitions to 1
         split_ds = split_ds.repeat(1)
@@ -386,7 +386,7 @@ class FaceDataset(Dataset):
         split_ds = split_ds.map(self.transform)
 
         # set dataset parameters, batch size
-        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=False)
+        split_ds = split_ds.batch(batch_size=batch_size, drop_remainder=True)
 
         # set number of repetitions to 1
         split_ds = split_ds.repeat(1)

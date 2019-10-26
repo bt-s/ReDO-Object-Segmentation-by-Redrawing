@@ -252,7 +252,6 @@ def train(args: Namespace, datasets: Dict):
 
         # sample noise vector
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
-        print(z.shape)
 
         # Update generator
         generator_update(batch_images_real_1, z, models,
