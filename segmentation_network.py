@@ -271,11 +271,11 @@ class SegmentationNetwork(Model):
 
         # Fourth computational block (1 convolutional layer, 1 up-sampling
         # layer, 2 convolutional layers)
-        self.conv_block_4 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
+        self.conv_block_4 = ConvolutionalBlock(filters=68, kernel_size=(3, 3),
                 padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.upsample = UpSampling2D(size=(2, 2), interpolation='nearest')
-        self.conv_block_5 = ConvolutionalBlock(filters=32, kernel_size=(3, 3),
+        self.conv_block_5 = ConvolutionalBlock(filters=34, kernel_size=(3, 3),
                 padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
