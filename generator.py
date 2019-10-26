@@ -17,7 +17,7 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, UpSampling2D, AveragePooling2D, Softmax
 from tensorflow.keras.initializers import orthogonal
 from typing import Union, List, Tuple
-
+from normalizations import InstanceNormalization
 from network_components import SelfAttentionModule, SpectralNormalization
 
 
@@ -32,8 +32,9 @@ class ConditionalBatchNormalization(Layer):
             init_gain: Initializer gain for orthogonal initialization
         """
         super(ConditionalBatchNormalization, self).__init__()
+
         # Instance Normalization | shifting and scaling switched off
-        self.in_1 = LayerNormalization(axis=(1, 2), center=False, scale=False)
+        self.in_1 = InstanceNormalization(center=False, scale=False)
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
@@ -41,7 +42,6 @@ class ConditionalBatchNormalization(Layer):
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
         self.beta = Conv2D(filters=filters, kernel_size=(1, 1), use_bias=True,
                 padding='same', kernel_initializer=orthogonal(gain=init_gain))
-
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor) -> tf.Tensor:
         """To call the CBN layer

@@ -40,7 +40,7 @@ class InformationConservationNetwork(Model):
         
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
-                stride=(2, 2))
+                stride=(1, 1), first_block=True)
 
         # Self-attention module
         self.block_2 = SelfAttentionModule(init_gain=init_gain,
@@ -48,15 +48,15 @@ class InformationConservationNetwork(Model):
 
         # Sequence of residual down-sampling blocks
         self.res_block_2 = ResidualBlock(init_gain=init_gain,
-                output_channels=64, stride=(2, 2))
+                output_channels=64, stride=(1, 1))
         self.res_block_3 = ResidualBlock(init_gain=init_gain,
-                output_channels=128, stride=(2, 2))
+                output_channels=128, stride=(1, 1))
         self.res_block_4 = ResidualBlock(init_gain=init_gain,
-                output_channels=256, stride=(2, 2))
+                output_channels=256, stride=(1, 1))
         self.res_block_5 = ResidualBlock(init_gain=init_gain,
-                output_channels=512, stride=(2, 2))
+                output_channels=512, stride=(1, 1))
         self.res_block_6 = ResidualBlock(init_gain=init_gain,
-                output_channels=1024, stride=(1, 1))
+                output_channels=1024, stride=(1, 1), downsample=False)
 
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
@@ -80,7 +80,6 @@ class InformationConservationNetwork(Model):
         x = self.res_block_4(x, training)
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
-        x = self.relu(x)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
         x = self.final_layer(x)
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
