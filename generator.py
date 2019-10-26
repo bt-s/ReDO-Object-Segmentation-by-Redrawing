@@ -188,7 +188,6 @@ class ResidualUpsamplingBlock(Layer):
         x = self.cbn_2(x, z_k)
         x = self.relu(x)
         x = self.conv_2(x, training)
-        x = self.cbn_2(x, z_k)
 
         # Skip-connection
         x += identity
