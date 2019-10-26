@@ -69,23 +69,22 @@ class ResidualBlock(Layer):
         # Save identity
         identity = x
 
-        # perform ReLU if not first block
+        # Perform ReLU if not first block
         if not self.first_block:
             x = self.relu(x)
 
         # Pass input through pipeline
-        x = self.relu(x)
         x = self.conv_1(x, training)
         x = self.relu(x)
         x = self.conv_2(x, training)
 
-        # down-sample residual features
+        # Down-sample residual features
         if self.downsample:
             x = self.pool(x)
 
-        # process identity
+        # Process identity
         if x.shape != identity.shape:
-            # down-sample identity to match residual dimensions
+            # Down-sample identity to match residual dimensions
             if self.downsample:
                 identity = self.pool(identity)
             identity = self.process_identity(identity, training)
