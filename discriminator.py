@@ -49,7 +49,6 @@ class ResidualBlock(Layer):
             kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
 
-
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of residual block layer call
 
@@ -117,7 +116,6 @@ class Discriminator(Model):
         # Dense classification layer
         self.block_5 = Dense(units=1,
                 kernel_initializer=orthogonal(gain=init_gain))
-
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Call the Discriminator network

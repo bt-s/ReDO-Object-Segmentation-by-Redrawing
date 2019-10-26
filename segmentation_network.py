@@ -12,11 +12,12 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Conv2D, LayerNormalization, ReLU, \
+from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
         UpSampling2D, Softmax, AveragePooling2D, ReLU
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
+from tensorflow_addons.layers.normalizations import InstanceNormalization
 
 
 class ConvolutionalBlock(Model):
@@ -38,14 +39,12 @@ class ConvolutionalBlock(Model):
         super(ConvolutionalBlock, self).__init__()
 
         self.conv_block = Sequential()
-        self.conv_block.add(LayerNormalization(axis=(1, 2),
-            center=True, scale=True))
+        self.conv_block.add(InstanceNormalization())
         self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
             padding=padding, strides=stride, use_bias=False,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
-
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of convolutional block
@@ -119,7 +118,6 @@ class PPM(Model):
         self.upsample_final = UpSampling2D(size=(2, 2),
                 interpolation='bilinear')
 
-
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of PPM block
 
@@ -176,14 +174,13 @@ class ResidualBlock(Model):
                 padding='same', use_bias=False,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = LayerNormalization(axis=(1, 2), center=True, scale=True)
+        self.in_1 = InstanceNormalization()
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_2 = LayerNormalization(axis=(1, 2), center=True, scale=True)
-
+        self.in_2 = InstanceNormalization()
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
@@ -216,7 +213,6 @@ class ReflectionPadding2D(Layer):
     def __init__(self, padding: Tuple[int, int]=(3, 3)):
         self.padding = padding
         super(ReflectionPadding2D, self).__init__()
-
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Reflection Padding block
