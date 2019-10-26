@@ -37,7 +37,7 @@ class InformationConservationNetwork(Model):
 
         # ReLU
         self.relu = ReLU()
-        
+
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
                 stride=(1, 1), first_block=True)
@@ -48,15 +48,15 @@ class InformationConservationNetwork(Model):
 
         # Sequence of residual down-sampling blocks
         self.res_block_2 = ResidualBlock(init_gain=init_gain,
-                output_channels=64, stride=(1, 1))
-        self.res_block_3 = ResidualBlock(init_gain=init_gain,
                 output_channels=128, stride=(1, 1))
-        self.res_block_4 = ResidualBlock(init_gain=init_gain,
+        self.res_block_3 = ResidualBlock(init_gain=init_gain,
                 output_channels=256, stride=(1, 1))
-        self.res_block_5 = ResidualBlock(init_gain=init_gain,
+        self.res_block_4 = ResidualBlock(init_gain=init_gain,
                 output_channels=512, stride=(1, 1))
+        self.res_block_5 = ResidualBlock(init_gain=init_gain,
+                output_channels=1024, stride=(1, 1))
         self.res_block_6 = ResidualBlock(init_gain=init_gain,
-                output_channels=1024, stride=(1, 1), downsample=False)
+                output_channels=2048, stride=(1, 1), downsample=False)
 
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
