@@ -102,7 +102,6 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of fully-connected layer
-        print(z_k.shape)
         x = self.dense(z_k[:, 0, 0, :])
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
@@ -418,7 +417,7 @@ class Generator(Model):
         for k in range(self.n_classes):
 
             # get noise vector for class k
-            z_k = z[:, k]
+            z_k = tf.identity(z[:, k])
 
             # Generate batch of fake images
             batch_images_k_fake, batch_region_k_fake = \
