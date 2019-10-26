@@ -123,7 +123,6 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
-        print(batch_masks.shape)
 
         # Get fake images from generator
         batch_images_fake, batch_regions_fake = models['G'](
