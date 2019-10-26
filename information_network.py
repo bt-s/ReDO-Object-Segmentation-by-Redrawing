@@ -81,16 +81,8 @@ class InformationConservationNetwork(Model):
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
-        print(x.shape)
         x = self.final_layer(x)
-        print(x.shape)
-        print(x[0, 0:5])
-        print(x[0, 32:38])
-
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
-        print(x.shape)
-        print(x[0, 0, :5])
-        print(x[0, 1, :5])
 
         return x
 
