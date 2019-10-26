@@ -81,8 +81,33 @@ class InformationConservationNetwork(Model):
         x = self.res_block_5(x, training)
         x = self.res_block_6(x, training)
         x = self.block_4(x) * x.shape[1] * x.shape[2]
+        print(x.shape)
         x = self.final_layer(x)
+        print(x.shape)
+        print(x[0, 0:5])
+        print(x[0, 32:38])
+
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
+        print(x.shape)
+        print(x[0, 0, :5])
+        print(x[0, 1, :5])
 
         return x
 
+if __name__ == '__main__':
+
+    tf1 = tf.ones([25, 128, 128, 3])
+    #inform = InformationConservationNetwork(init_gain=0.8, n_classes=2, n_output=32)
+    #out = inform(tf1, training=True)
+
+    tf2 = tf.random.normal([20, 2, 1, 1, 32], 0, 1)
+    tf21 = tf2[:, :, 0, 0, :]
+    tf3 = tf.random.normal([20, 2, 32], 0, 3)
+
+    tf4 = (tf2 - tf3)
+    loss = tf.reduce_mean(tf4 * tf4)
+    tf41 = (tf21 - tf3)
+    loss1 = tf.reduce_mean(tf41 * tf41)
+    print(tf4.shape)
+    print(loss)
+    print(loss1)

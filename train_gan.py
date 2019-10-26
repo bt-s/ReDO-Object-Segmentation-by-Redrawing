@@ -137,7 +137,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
         # Compute generator loss for current batch
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
-                                                         z, batch_z_k_hat)
+                                                         z[:, :, 0, 0, :], batch_z_k_hat)
 
         g_loss = g_loss_d + g_loss_i
 
