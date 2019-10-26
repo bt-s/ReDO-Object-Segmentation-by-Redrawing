@@ -196,18 +196,16 @@ class ResidualBlock(Model):
 
         # Residual pipeline
 
+        x = self.conv_1(x)
         x = self.in_1(x)
         x = self.relu(x)
-        x = self.conv_1(x)
-        x = self.in_2(x)
-        x = self.relu(x)
         x = self.conv_2(x)
-        x = self.in_2(x)
 
         # Skip-connection
         x += identity
 
         # Apply ReLU activation
+        x = self.in_2(x)
         x = self.relu(x)
 
         return x
