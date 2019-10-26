@@ -20,7 +20,6 @@ from typing import Tuple
 class SpectralNormalization(Layer):
     """Spectral normalization layer to wrap around a Conv2D Layer. Kernel
     weights are normalized before each forward pass."""
-
     def __init__(self, layer: Conv2D, n_power_iterations: int=1):
         """Class constructor
 
@@ -36,13 +35,17 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
+
     def build(self, input_shape):
+        #TODO: provide a docstring and type-hinting here
         # u cannot be initialized yet, since the kernel shape is
         # not known yet
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
             initializer=tf.initializers.RandomNormal, trainable=False)
 
+
     def normalize_weights(self, training: bool):
+        #TODO: provide a docstring and type-hinting here
         """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
         # Number of filter kernels in Conv2D layer
         filters = self.layer.weights[0].shape.as_list()[-1]
@@ -65,6 +68,7 @@ class SpectralNormalization(Layer):
 
         return W_sn
 
+
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute approximate spectral norm.
 
@@ -85,6 +89,7 @@ class SpectralNormalization(Layer):
 
         return spectral_norm, u
 
+
     @staticmethod
     def normalize_l2(v: tf.Tensor, epsilon: float=1e-12) -> tf.Tensor:
         """Normalize input matrix w.r.t. its euclidean norm
@@ -96,32 +101,33 @@ class SpectralNormalization(Layer):
         Returns:
             l2-normalized input matrix
         """
-
         return v / (tf.math.reduce_sum(v**2)**0.5 + epsilon)
+
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform forward pass of Conv2D layer on first iteration to initialize
         the weights
-        
+
         Args:
             x:
             training:
         """
-        # Perform forward pass of Conv2D layer on first iteration to initialize weights
-        # Introduce 'kernel_orig' as trainable variables
+        # Perform forward pass of Conv2D layer on first iteration to initialize
+        # the weights. Introduce 'kernel_orig' as trainable variables
         if not self.init:
             _ = self.layer(x)
             self.layer.kernel_orig = self.add_weight('kernel_orig',
                     self.layer.kernel.shape, trainable=True)
             weights = self.layer.get_weights()
-            # set 'kernel_orig' to network's weights. 'kernel_orig' will be updated, 'kernel'
-            # will be normalized and used in the forward pass
+            # Set 'kernel_orig' to network's weights. 'kernel_orig' will be
+            # updated, 'kernel' will be normalized and used in the forward pass
             if len(weights) == 2:
-                # conv layer without bias
+                # Conv layer without bias
                 self.layer.set_weights([weights[0], tf.identity(weights[0])])
             else:
-                # conv layer with bias
-                self.layer.set_weights([tf.identity(weights[0]), weights[1], tf.identity(weights[0])])
+                # Conv layer with bias
+                self.layer.set_weights([tf.identity(weights[0]), weights[1],
+                    tf.identity(weights[0])])
 
             # SN layer initialized
             self.init = True
@@ -137,7 +143,7 @@ class SpectralNormalization(Layer):
 
         return output
 
-      
+
 class SelfAttentionModule(Layer):
     """Self-attention component for GANs"""
     def __init__(self, init_gain: float, output_channels: int,
@@ -157,7 +163,8 @@ class SelfAttentionModule(Layer):
             self.key_size = key_size
 
         # Trainable parameter to control influence of learned attention maps
-        self.gamma = self.add_weight(name='self_attention_gamma', initializer=tf.zeros_initializer())
+        self.gamma = self.add_weight(name='self_attention_gamma',
+                initializer=tf.zeros_initializer())
 
         # map pooling to reduce memory print
         self.max_pool = MaxPool2D(pool_size=(2, 2))
@@ -167,19 +174,23 @@ class SelfAttentionModule(Layer):
             filters=self.key_size, kernel_size=(1, 1),
             kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.g = SpectralNormalization(Conv2D(filters=self.key_size,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain),
+            use_bias=False))
         self.h = SpectralNormalization(Conv2D(filters=output_channels//2,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain),
+            use_bias=False))
         self.out = SpectralNormalization(Conv2D(filters=output_channels,
-            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
+            kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain),
+            use_bias=False))
+
 
     def compute_attention(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Compute attention maps
-        
+
         Args:
             x: Input to the residual block
             training: Whether we are training
-            
+
         Returns:
             Attention map with same shape as input feature maps
         """
@@ -189,14 +200,14 @@ class SelfAttentionModule(Layer):
         # Compute and reshape features
         fx = tf.reshape(self.f(x, training), [-1, h * w, self.key_size])
         gx = self.g(x, training)
-        
+
         # Downsample features to reduce memory print
         gx = self.max_pool(gx)
         gx = tf.reshape(gx, [-1, (h * w)//4, self.key_size])
         s = tf.matmul(fx, gx, transpose_b=True)
-        
+
         beta = Softmax(axis=2)(s)
-        
+
         hx = self.h(x, training)
         hx = self.max_pool(hx)
         hx = tf.reshape(hx, [-1, (h * w)//4, c//2])
@@ -206,6 +217,7 @@ class SelfAttentionModule(Layer):
         o = self.out(interim, training)
 
         return o
+
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of attention layer
@@ -217,3 +229,4 @@ class SelfAttentionModule(Layer):
         y = self.gamma * o + x
 
         return y
+
