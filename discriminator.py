@@ -67,7 +67,7 @@ class ResidualBlock(Layer):
             training: Whether we are training
         """
         # Save identity
-        identity = x
+        identity = tf.identity(x)
 
         # Perform ReLU if not first block
         if not self.first_block:

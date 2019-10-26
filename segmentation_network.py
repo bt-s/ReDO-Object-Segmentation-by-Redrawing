@@ -188,7 +188,7 @@ class ResidualBlock(Model):
             x: Input to the Residual block
         """
         # Store input for skip-connection
-        identity = x
+        identity = tf.identity(x)
 
         # Residual pipeline
 

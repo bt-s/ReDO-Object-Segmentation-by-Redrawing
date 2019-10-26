@@ -159,7 +159,6 @@ class ResidualUpsamplingBlock(Layer):
             filters=self.output_channels, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
 
-
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
         """To call the residual upsampling block
@@ -223,7 +222,6 @@ class OutputBlock(Layer):
         self.conv = SpectralNormalization(Conv2D(
             filters=3, kernel_size=(3, 3), padding='same',
             kernel_initializer=orthogonal(gain=init_gain)))
-
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks: tf.Tensor,
             training: bool) -> tf.Tensor:
@@ -300,8 +298,7 @@ class ClassGenerator(Model):
         self.block_5 = OutputBlock(init_gain=init_gain,
                 base_channels=self.base_channels, output_factor=1)
 
-
-    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
+    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor, z_k: tf.Tensor,
             n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
                     tf.Tensor]:
         """Forward pass of the generator network - create a batch of fake images
@@ -319,14 +316,8 @@ class ClassGenerator(Model):
             z_k: Generated noise vector
         """
 
-        # Batch size
-        batch_size = batch_masks.shape[0]
-
         # Number of different regions
         n_regions = batch_masks.shape[3]
-
-        # Sample noise vector
-        z_k = tf.random.normal([batch_size, 1, 1, n_input])
 
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
@@ -365,7 +356,7 @@ class ClassGenerator(Model):
 
                 batch_images_fake += batch_images_real * batch_masks_inv
 
-        return batch_images_fake, batch_region_k_fake, z_k[:, 0, 0, :]
+        return batch_images_fake, batch_region_k_fake
 
 
 class Generator(Model):
@@ -396,7 +387,7 @@ class Generator(Model):
         self.class_generators = [ClassGenerator(init_gain=init_gain, k=k,
             base_channels=base_channels) for k in range(self.n_classes)]
 
-    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor,
+    def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor, z: tf.Tensor,
             update_generator: bool, training: bool) -> Union[List[tf.Tensor],
                 tf.Tensor]:
         """Generate fake images by separately redrawing each class using the
@@ -425,23 +416,24 @@ class Generator(Model):
 
         for k in range(self.n_classes):
 
+            # get noise vector for class k
+            z_k = z[:, k]
+
             # Generate batch of fake images
-            batch_images_k_fake, batch_region_k_fake, z_k = \
-                            self.class_generators[k](batch_images_real, batch_masks,
+            batch_images_k_fake, batch_region_k_fake = \
+                            self.class_generators[k](batch_images_real, batch_masks, z_k,
                                     n_input=self.n_input, training=training)
 
             if batch_images_fake is None:
                 batch_images_fake = batch_images_k_fake
                 batch_regions_fake = batch_region_k_fake
-                batch_z_k = z_k
             else:
                 batch_images_fake = tf.concat((batch_images_fake, batch_images_k_fake), axis=0)
-                batch_z_k = tf.concat((batch_z_k, z_k), axis=0)
                 batch_regions_fake += batch_region_k_fake
 
         # Return batch of fake images
         if update_generator:
-            return batch_images_fake, batch_regions_fake, batch_z_k
+            return batch_images_fake, batch_regions_fake
         else:
             return batch_images_fake
 
