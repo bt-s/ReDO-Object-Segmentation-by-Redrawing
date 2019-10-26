@@ -17,7 +17,7 @@ from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
-import tensorflow_addons as tfa
+from tensorflow_addons.layers.normalizations import InstanceNormalization()
 
 
 class ConvolutionalBlock(Model):
@@ -39,7 +39,7 @@ class ConvolutionalBlock(Model):
         super(ConvolutionalBlock, self).__init__()
 
         self.conv_block = Sequential()
-        self.conv_block.add(tfa.layers.normalizations.InstanceNormalization())
+        self.conv_block.add(InstanceNormalization())
         self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
             padding=padding, strides=stride, use_bias=False,
@@ -174,13 +174,13 @@ class ResidualBlock(Model):
                 padding='same', use_bias=False,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = tfa.layers.normalizations.InstanceNormalization()
+        self.in_1 = InstanceNormalization()
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_2 = tfa.layers.normalizations.InstanceNormalization()
+        self.in_2 = InstanceNormalization()
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
