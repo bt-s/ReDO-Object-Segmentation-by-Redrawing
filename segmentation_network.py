@@ -13,11 +13,11 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
-        UpSampling2D, Softmax, AveragePooling2D, ReLU
+        UpSampling2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
-from tensorflow_addons.layers.normalizations import InstanceNormalization
+from normalizations import InstanceNormalization
 
 
 class ConvolutionalBlock(Model):

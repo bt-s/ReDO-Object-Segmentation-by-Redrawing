@@ -1,12 +1,12 @@
 import tensorflow as tf
-import tensorflow_addons as tfa
+from normalizations import InstanceNormalization
 from tensorflow.keras.layers import LayerNormalization
 
-in_norm = tfa.layers.normalizations.InstanceNormalization()
+in_norm = InstanceNormalization()
 la_norm = LayerNormalization(axis=(1, 2), center=True, scale=True)
 
-inp1 = tf.random.normal([1, 128, 128, 3])
-inp2 = tf.random.normal([1, 128, 128, 3])
+inp1 = tf.random.normal([25, 128, 128, 3])
+inp2 = tf.random.normal([25, 128, 128, 3])
 
 out1 = in_norm(inp1)
 out2 = la_norm(inp1)
