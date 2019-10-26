@@ -102,6 +102,7 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of fully-connected layer
+        print(z_k.shape)
         x = self.dense(z_k[:, 0, 0, :])
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
