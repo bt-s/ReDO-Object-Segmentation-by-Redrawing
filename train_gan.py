@@ -125,8 +125,8 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         batch_masks = models['F'](batch_images_real)
 
         # Get fake images from generator
-        batch_images_fake, batch_regions_fake, batch_z_k = models['G'](
-            batch_images_real, batch_masks, update_generator=True,
+        batch_images_fake, batch_regions_fake = models['G'](
+            batch_images_real, batch_masks, z, update_generator=True,
             training=True)
 
         # Get the recovered z-value from the information network
@@ -137,7 +137,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
         # Compute generator loss for current batch
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
-                                                         batch_z_k, batch_z_k_hat)
+                                                         z, batch_z_k_hat)
 
         g_loss = g_loss_d + g_loss_i
 
