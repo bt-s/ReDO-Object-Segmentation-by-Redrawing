@@ -13,7 +13,6 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
-from tensorflow.keras.constraints import Constraint
 from typing import Tuple, Union
 
 
@@ -35,14 +34,12 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
-
     def build(self, input_shape):
         #TODO: provide a docstring and type-hinting here
         # u cannot be initialized yet, since the kernel shape is
         # not known yet
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
             initializer=tf.initializers.RandomNormal, trainable=False)
-
 
     def normalize_weights(self, training: bool):
         #TODO: provide a docstring and type-hinting here
@@ -67,7 +64,6 @@ class SpectralNormalization(Layer):
             self.u = u
 
         return W_sn
-
 
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute approximate spectral norm.

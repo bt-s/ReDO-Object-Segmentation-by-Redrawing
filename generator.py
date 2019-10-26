@@ -299,8 +299,7 @@ class ClassGenerator(Model):
                 base_channels=self.base_channels, output_factor=1)
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor, z_k: tf.Tensor,
-            n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor,
-                    tf.Tensor]:
+            n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor]:
         """Forward pass of the generator network - create a batch of fake images
 
         Args:
@@ -318,7 +317,7 @@ class ClassGenerator(Model):
 
         # Number of different regions
         n_regions = batch_masks.shape[3]
-  
+
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
 
