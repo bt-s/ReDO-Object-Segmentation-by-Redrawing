@@ -123,6 +123,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
+        print(batch_masks.shape)
 
         # Get fake images from generator
         batch_images_fake, batch_regions_fake = models['G'](
@@ -252,6 +253,7 @@ def train(args: Namespace, datasets: Dict):
 
         # sample noise vector
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
+        print(z.shape)
 
         # Update generator
         generator_update(batch_images_real_1, z, models,
