@@ -56,7 +56,7 @@ class InformationConservationNetwork(Model):
         self.res_block_5 = ResidualBlock(init_gain=init_gain,
                 output_channels=1024, stride=(1, 1))
         self.res_block_6 = ResidualBlock(init_gain=init_gain,
-                output_channels=2048, stride=(1, 1), downsample=False)
+                output_channels=1024, stride=(1, 1), downsample=False)
 
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
