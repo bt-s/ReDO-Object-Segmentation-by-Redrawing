@@ -243,39 +243,39 @@ class SegmentationNetwork(Model):
 
         # First computational block (3 convolutional layers)
         self.ref_padding_1 = ReflectionPadding2D(padding=(3, 3))
-        self.conv_block_1 = ConvolutionalBlock(filters=32, kernel_size=(7, 7),
+        self.conv_block_1 = ConvolutionalBlock(filters=16, kernel_size=(7, 7),
                 padding='valid', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.conv_block_2 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
+        self.conv_block_2 = ConvolutionalBlock(filters=32, kernel_size=(3, 3),
                 padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.conv_block_3 = ConvolutionalBlock(filters=128, kernel_size=(3, 3),
+        self.conv_block_3 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
                 padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.block_1 = Sequential((self.ref_padding_1, self.conv_block_1,
             self.conv_block_2, self.conv_block_3))
 
         # Second computational block (3 residual blocks)
-        self.res_block_1 = ResidualBlock(init_gain=init_gain, n_channels=128,
+        self.res_block_1 = ResidualBlock(init_gain=init_gain, n_channels=64,
                 weight_decay=weight_decay)
-        self.res_block_2 = ResidualBlock(init_gain=init_gain, n_channels=128,
+        self.res_block_2 = ResidualBlock(init_gain=init_gain, n_channels=64,
                 weight_decay=weight_decay)
-        self.res_block_3 = ResidualBlock(init_gain=init_gain, n_channels=128,
+        self.res_block_3 = ResidualBlock(init_gain=init_gain, n_channels=64,
                 weight_decay=weight_decay)
         self.block_2 = Sequential((self.res_block_1, self.res_block_2,
             self.res_block_3))
 
         # Third computational block (1 Pyramid Pooling Module)
-        self.block_3 = PPM(init_gain=init_gain, input_shape=(32, 32, 128),
+        self.block_3 = PPM(init_gain=init_gain, input_shape=(32, 32, 64),
                 weight_decay=weight_decay)
 
         # Fourth computational block (1 convolutional layer, 1 up-sampling
         # layer, 2 convolutional layers)
-        self.conv_block_4 = ConvolutionalBlock(filters=68, kernel_size=(3, 3),
+        self.conv_block_4 = ConvolutionalBlock(filters=34, kernel_size=(3, 3),
                 padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.upsample = UpSampling2D(size=(2, 2), interpolation='nearest')
-        self.conv_block_5 = ConvolutionalBlock(filters=34, kernel_size=(3, 3),
+        self.conv_block_5 = ConvolutionalBlock(filters=17, kernel_size=(3, 3),
                 padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
