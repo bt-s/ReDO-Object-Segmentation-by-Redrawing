@@ -132,7 +132,7 @@ class SpectralNormalization(Layer):
         W_sn = self.normalize_weights(training=training)
 
         # assign normalized weights to kernel for forward pass
-        self.layer.kernel = W_sn
+        self.layer.kernel = self.layer.kernel_orig
 
         # perform forward pass of Conv2d layer
         output = self.layer(x)

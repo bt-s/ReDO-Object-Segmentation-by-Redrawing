@@ -136,6 +136,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         d_logits_fake = models['D'](batch_images_fake, training=True)
 
         # Compute generator loss for current batch
+        print(z[0, :, 0, 0, :10])
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
                                                          z[:, :, 0, 0, :], batch_z_k_hat)
 
@@ -240,7 +241,7 @@ def train(args: Namespace, datasets: Dict):
     for iter in range(args.n_iterations):
 
         # Print progress
-        print('Iteration: ', iter + 1)
+        print('Iteration: ', iter)
 
         try:
             batch_images_real_1, _ = next(iterator)
@@ -252,6 +253,7 @@ def train(args: Namespace, datasets: Dict):
 
         # sample noise vector
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
+        print(z[0, :, 0, 0, :10])
 
         # Update generator
         generator_update(batch_images_real_1, z, models,
