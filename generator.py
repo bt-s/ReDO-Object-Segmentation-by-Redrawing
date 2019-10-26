@@ -86,13 +86,13 @@ class InputBlock(Layer):
 
         # Fully-connected layer with number of output channels * 4 * 4 units
         # for reshaping into 4x4 feature maps
-        self.dense = Dense(units=self.output_channels * 4 * 4,
-                kernel_initializer=orthogonal(gain=init_gain))
+        self.dense = SpectralNormalization(Conv2D(filters=self.output_channels * 4 * 4, kernel_size=(1, 1),
+                kernel_initializer=orthogonal(gain=init_gain)))
         self.cbn = ConditionalBatchNormalization(filters=self.output_channels,
                 init_gain=init_gain)
         self.relu = ReLU()
 
-    def call(self, z_k: tf.Tensor) -> tf.Tensor:
+    def call(self, z_k: tf.Tensor, training: bool) -> tf.Tensor:
         """To call the first input block of the generator network
 
         Args:
@@ -102,7 +102,7 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of fully-connected layer
-        x = self.dense(z_k[:, 0, 0, :])
+        x = self.dense(z_k, training)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         # Apply CBN
@@ -318,6 +318,8 @@ class ClassGenerator(Model):
 
         # Number of different regions
         n_regions = batch_masks.shape[3]
+        print(z_k.shape)
+
 
         # Get masks for region k
         batch_masks_k = tf.expand_dims(batch_masks[:, :, :, self.k], axis=3)
@@ -328,7 +330,7 @@ class ClassGenerator(Model):
         for k in range(n_regions):
             # Re-draw sampled region
             if k == self.k:
-                x = self.block_1(z_k)
+                x = self.block_1(z_k, training=training)
                 x = self.up_res_block_1(x, z_k, batch_masks_k,
                         training=training)
                 x = self.up_res_block_2(x, z_k, batch_masks_k,
@@ -416,12 +418,9 @@ class Generator(Model):
 
         for k in range(self.n_classes):
 
-            # get noise vector for class k
-            z_k = tf.identity(z[:, k])
-
             # Generate batch of fake images
             batch_images_k_fake, batch_region_k_fake = \
-                            self.class_generators[k](batch_images_real, batch_masks, z_k,
+                            self.class_generators[k](batch_images_real, batch_masks, z[:, k],
                                     n_input=self.n_input, training=training)
 
             if batch_images_fake is None:
