@@ -24,7 +24,7 @@ class ConvolutionalBlock(Model):
     """Computational block consisting of a 2D Convolutional layer followed by
     an Instance Normalization layer and ReLU activation."""
     def __init__(self, filters: int, kernel_size: Tuple[int, int], padding: str,
-            stride: Union[int, Tuple[int, int]], init_gain: float,
+            stride: Union[int, Tuple[int, int]], init_gain: float, use_bias: bool,
             weight_decay: float):
         """Class constructor
 
@@ -39,12 +39,12 @@ class ConvolutionalBlock(Model):
         super(ConvolutionalBlock, self).__init__()
 
         self.conv_block = Sequential()
-        self.conv_block.add(InstanceNormalization())
-        self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
-            padding=padding, strides=stride, use_bias=False,
+            padding=padding, strides=stride, use_bias=use_bias,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
+        self.conv_block.add(InstanceNormalization())
+        self.conv_block.add(ReLU())
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of convolutional block
@@ -74,6 +74,9 @@ class PPM(Model):
         if not len(input_shape) == 3:
             raise ValueError("Input parameter <input_dim> must be of shape "
                     "(W, H, C).")
+
+        # ReLU
+        self.relu = ReLU()
 
         # Scale 1 (1x1 Output)
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
@@ -116,7 +119,7 @@ class PPM(Model):
 
         # Final up-sampling
         self.upsample_final = UpSampling2D(size=(2, 2),
-                interpolation='bilinear')
+                interpolation='nearest')
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of PPM block
@@ -127,25 +130,21 @@ class PPM(Model):
         # Scale 1
         x_1 = self.avg_pool_1(x)
         x_1 = self.conv_1(x_1)
-        x_1 = ReLU()(x_1)
         x_1 = self.upsample_1(x_1)
 
         # Scale 2
         x_2 = self.avg_pool_2(x)
         x_2 = self.conv_2(x_2)
-        x_2 = ReLU()(x_2)
         x_2 = self.upsample_2(x_2)
 
         # Scale 3
         x_3 = self.avg_pool_3(x)
         x_3 = self.conv_3(x_3)
-        x_3 = ReLU()(x_3)
         x_3 = self.upsample_3(x_3)
 
         # Scale 4
         x_4 = self.avg_pool_4(x)
         x_4 = self.conv_4(x_4)
-        x_4 = ReLU()(x_4)
         x_4 = self.upsample_4(x_4)
 
         # Concatenate feature maps
@@ -244,40 +243,40 @@ class SegmentationNetwork(Model):
 
         # First computational block (3 convolutional layers)
         self.ref_padding_1 = ReflectionPadding2D(padding=(3, 3))
-        self.conv_block_1 = ConvolutionalBlock(filters=16, kernel_size=(7, 7),
-                padding='valid', stride=1, init_gain=init_gain,
+        self.conv_block_1 = ConvolutionalBlock(filters=32, kernel_size=(7, 7),
+                padding='valid', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.conv_block_2 = ConvolutionalBlock(filters=32, kernel_size=(3, 3),
-                padding='same', stride=2, init_gain=init_gain,
+        self.conv_block_2 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
+                padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.conv_block_3 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
-                padding='same', stride=2, init_gain=init_gain,
+        self.conv_block_3 = ConvolutionalBlock(filters=128, kernel_size=(3, 3),
+                padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.block_1 = Sequential((self.ref_padding_1, self.conv_block_1,
             self.conv_block_2, self.conv_block_3))
 
         # Second computational block (3 residual blocks)
-        self.res_block_1 = ResidualBlock(init_gain=init_gain, n_channels=64,
+        self.res_block_1 = ResidualBlock(init_gain=init_gain, n_channels=128,
                 weight_decay=weight_decay)
-        self.res_block_2 = ResidualBlock(init_gain=init_gain, n_channels=64,
+        self.res_block_2 = ResidualBlock(init_gain=init_gain, n_channels=128,
                 weight_decay=weight_decay)
-        self.res_block_3 = ResidualBlock(init_gain=init_gain, n_channels=64,
+        self.res_block_3 = ResidualBlock(init_gain=init_gain, n_channels=128,
                 weight_decay=weight_decay)
         self.block_2 = Sequential((self.res_block_1, self.res_block_2,
             self.res_block_3))
 
         # Third computational block (1 Pyramid Pooling Module)
-        self.block_3 = PPM(init_gain=init_gain, input_shape=(32, 32, 64),
+        self.block_3 = PPM(init_gain=init_gain, input_shape=(32, 32, 128),
                 weight_decay=weight_decay)
 
         # Fourth computational block (1 convolutional layer, 1 up-sampling
         # layer, 2 convolutional layers)
-        self.conv_block_4 = ConvolutionalBlock(filters=34, kernel_size=(3, 3),
-                padding='same', stride=1, init_gain=init_gain,
+        self.conv_block_4 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
+                padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
-        self.conv_block_5 = ConvolutionalBlock(filters=17, kernel_size=(3, 3),
-                padding='same', stride=1, init_gain=init_gain,
+        self.upsample = UpSampling2D(size=(2, 2), interpolation='nearest')
+        self.conv_block_5 = ConvolutionalBlock(filters=32, kernel_size=(3, 3),
+                padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
 
