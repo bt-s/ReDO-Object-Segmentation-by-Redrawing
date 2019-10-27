@@ -39,7 +39,7 @@ def parse_train_args():
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
 
     # Options/flags
-    parser.add_argument('-b', '--batch-size', type=int, default=25)
+    parser.add_argument('-b', '--batch-size', type=int, default=20)
     parser.add_argument('-g', '--init-gain', type=float, default=0.8)
     parser.add_argument('-w', '--weight-decay', type=float, default=1e-4)
     parser.add_argument('-lz', '--lambda-z', type=float, default=5.0,
@@ -146,7 +146,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
             ax[i, 2].imshow(batch_regions_fake[i].numpy())
             ax[i, 3].imshow(batch_images_fake[i].numpy())
             ax[i, 4].imshow(batch_images_fake[batch_images_real.shape[0]+i].numpy())
-        plt.show()
+        plt.savefig('generator_update.png')
 
         g_loss = g_loss_d + g_loss_i
 
@@ -243,11 +243,11 @@ def train(args: Namespace, datasets: Dict):
     adversarial_loss = UnsupervisedLoss(lambda_z=args.lambda_z)
 
     # Define optimizers
-    g_optimizer = Adam(learning_rate=args.learning_rate_other,
+    g_optimizer = Adam(learning_rate=1.1*args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
-    d_optimizer = Adam(learning_rate=args.learning_rate_other,
+    d_optimizer = Adam(learning_rate=0.9*args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
-    i_optimizer = Adam(learning_rate=args.learning_rate_other,
+    i_optimizer = Adam(learning_rate=1.1*args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
     f_optimizer = Adam(learning_rate=args.learning_rate_mask,
                        beta_1=args.beta_1, beta_2=args.beta_2)
