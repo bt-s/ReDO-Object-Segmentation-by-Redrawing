@@ -77,8 +77,8 @@ class Dataset:
             ValueError: if `file_type` is not one of the correct values
         """
         # check for correct type of file
-        #if not (file_type == 'path' or 'split'):
-         #   raise ValueError(f'{file_type} not one of path, split')
+        # if not (file_type == 'path' or 'split'):
+        #   raise ValueError(f'{file_type} not one of path, split')
 
         items = []
         with open(filename, 'r') as file:
@@ -115,7 +115,7 @@ class Dataset:
         label = tf.image.resize(label, size=(128, 128),
                                 preserve_aspect_ratio=False)
 
-        # standardize image
+        # center image
         image = (image / 255.0) * 2 - 1
 
         # binarize and create one-hot label
@@ -144,8 +144,8 @@ class Dataset:
         Raises:
             ValueError if `split` not in SPLIT_KEYS
         """
-        #if split not in Dataset.SPLIT_KEYS:
-         #   raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        # if split not in Dataset.SPLIT_KEYS:
+        #    raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
@@ -169,6 +169,11 @@ class Dataset:
 
             split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
             split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
+        else:
+            indices = tf.range(0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            shuffled_indices = tf.random.shuffle(indices)
+            split_image_paths = tf.gather_nd(split_image_paths, shuffled_indices)
+            split_label_paths = tf.gather_nd(split_label_paths, shuffled_indices)
 
         # create tf.data.dataset objects for images and labels
         # zip datasets to create (image, label) dataset
@@ -213,8 +218,8 @@ class BirdDataset(Dataset):
         dataset"""
 
         # check for correct type of file
-        #if not (file_type == 'path' or 'split'):
-         #   raise ValueError(f'{file_type} not one of path, split')
+        # if not (file_type == 'path' or 'split'):
+        #    raise ValueError(f'{file_type} not one of path, split')
 
         items = []
         with open(filename, 'r') as file:
@@ -233,8 +238,8 @@ class BirdDataset(Dataset):
     def get_split(self, split: str, size: int=None, batch_size: int=25,
                   shuffle: bool=False) -> tf.data.Dataset:
         """See `Dataset.get_split`"""
-        #if split not in Dataset.SPLIT_KEYS:
-         #   raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        # if split not in Dataset.SPLIT_KEYS:
+        #    raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
@@ -342,8 +347,8 @@ class FaceDataset(Dataset):
         """See `Dataset.get_split` differences specific to the dataset file
         organization
         """
-        #if split not in Dataset.SPLIT_KEYS:
-         #   raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
+        # if split not in Dataset.SPLIT_KEYS:
+        #    raise ValueError(f'{split} not one of {Dataset.SPLIT_KEYS}')
 
         # get relative paths to images and labels of desired split
         # convert python list to tf.tensor
@@ -416,7 +421,7 @@ class FaceDataset(Dataset):
         label = tf.image.resize(label, size=(128, 128),
                                 preserve_aspect_ratio=False)
 
-        # standardize image
+        # center image
         image = (image / 255.0) * 2 - 1
 
         # binarize and get one-hot label
