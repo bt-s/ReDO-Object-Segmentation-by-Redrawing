@@ -164,7 +164,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
 
 def validation_step(validation_set: tf.data.Dataset,
-                    models: Dict, metrics: Dict):
+                    models: Dict, metrics: Dict, iter: int, session_name: str):
     perm_mean_accuracy_1 = Mean()
     perm_mean_IoU_1 = Mean()
     perm_mean_accuracy_2 = Mean()
@@ -192,6 +192,32 @@ def validation_step(validation_set: tf.data.Dataset,
     else:
         metrics['accuracy'](perm_mean_accuracy_2.result())
         metrics['IoU'](perm_mean_IoU_2.result())
+
+    # save image of redrawn images
+    val_iter = validation_set.__iter__()
+    batch_images_real, batch_labels = next(val_iter)
+    batch_masks = models['F'](batch_images_real)
+    tf.random.set_seed(0)
+    z = tf.random.normal([batch_images_real.shape[0], batch_masks.shape[3], 1, 1, 32])
+    batch_images_fake, batch_regions_fake = models['G'](batch_images_real, batch_masks, z, update_generator=True,
+                                                        training=False)
+    fig, ax = plt.subplots(5, 5)
+    title = 'Iteration: ' + str(iter)
+    fig.suptitle(title)
+    for i in range(5):
+        ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
+        ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
+        ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
+        ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
+        ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
+        [ax[i, j].axis('off') for j in range(5)]
+    ax[0, 0].set_title('Image')
+    ax[0, 1].set_title('Mask')
+    ax[0, 2].set_title('Regions')
+    ax[0, 3].set_title('Fake 1')
+    ax[0, 4].set_title('Fake 2')
+    plt.savefig('Images/' + session_name + '/Iteration_' + str(iter) + '.png')
+    plt.close()
 
 
 def create_network_objects(args: Namespace) -> Dict:
@@ -277,7 +303,7 @@ def train(args: Namespace, datasets: Dict):
         # Update generator
         batch_images_fake, batch_regions_fake, batch_masks = \
             generator_update(batch_images_real_1, z, models,
-                         metrics, optimizers, adversarial_loss)
+                             metrics, optimizers, adversarial_loss)
 
         # Update discriminator
         discriminator_update(batch_images_real_1, batch_images_real_2, z, optimizers,
@@ -293,32 +319,13 @@ def train(args: Namespace, datasets: Dict):
                         model.model_name + '/Iteration_' + str(iter) + '/')
 
             # Perform validation step
-            validation_step(datasets['val'], models, metrics)
+            validation_step(datasets['val'], models, metrics, iter, args.session_name)
 
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)
 
             # Reset metrics after checkpoint
             [metric.reset_states() for metric in metrics.values()]
-
-            # save image of redrawn images
-            fig, ax = plt.subplots(5, 5)
-            title = 'Iteration: ' + str(iter)
-            fig.suptitle(title)
-            for i in range(5):
-                ax[i, 0].imshow(normalize_contrast(batch_images_real_1[i].numpy()))
-                ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
-                ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
-                ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
-                ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real_1.shape[0] + i].numpy()))
-                [ax[i, j].axis('off') for j in range(5)]
-            ax[0, 0].set_title('Input Image')
-            ax[0, 1].set_title('Mask')
-            ax[0, 2].set_title('Fake Regions')
-            ax[0, 3].set_title('Fake Image 1')
-            ax[0, 4].set_title('Fake Image 2')
-            plt.savefig('Images/Iteration_' + str(iter) + '.png')
-            plt.close()
 
 
 def main(args: Namespace):
