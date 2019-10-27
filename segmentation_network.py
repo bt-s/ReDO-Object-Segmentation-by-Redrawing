@@ -187,18 +187,15 @@ class ResidualBlock(Model):
         Args:
             x: Input to the Residual block
         """
-        # Store input for skip-connection
-        identity = tf.identity(x)
 
         # Residual pipeline
-
-        x = self.conv_1(x)
-        x = self.in_1(x)
-        x = self.relu(x)
-        x = self.conv_2(x)
+        h = self.conv_1(x)
+        h = self.in_1(h)
+        h = self.relu(h)
+        h = self.conv_2(h)
 
         # Skip-connection
-        x += identity
+        x += h
 
         # Apply ReLU activation
         x = self.in_2(x)
@@ -293,7 +290,6 @@ class SegmentationNetwork(Model):
 
         self.block_4 = Sequential((self.conv_block_4, self.upsample,
             self.conv_block_5, self.ref_padding_2, self.conv_final))
-
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of the segmentation network

@@ -27,6 +27,7 @@ from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
 from information_network import InformationConservationNetwork
+import matplotlib.pyplot as plt
 
 SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset}
 
@@ -85,7 +86,6 @@ def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf
                                     training=True)
 
     with tf.GradientTape() as tape:
-
         # Get logits for real and fake images
         d_logits_real = models['D'](batch_images_real_2, True)
         d_logits_fake = models['D'](batch_images_fake, True)
@@ -120,7 +120,6 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     """
 
     with tf.GradientTape() as tape:
-
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
 
@@ -136,7 +135,6 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         d_logits_fake = models['D'](batch_images_fake, training=True)
 
         # Compute generator loss for current batch
-        print(z[0, :, 0, 0, :10])
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
                                                          z[:, :, 0, 0, :], batch_z_k_hat)
 
@@ -165,13 +163,33 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
 
 def validation_step(validation_set: tf.data.Dataset,
                     models: Dict, metrics: Dict):
-    for batch_id, (batch_images, batch_labels) in enumerate(validation_set):
+    perm_mean_accuracy_1 = Mean()
+    perm_mean_IoU_1 = Mean()
+    perm_mean_accuracy_2 = Mean()
+    perm_mean_IoU_2 = Mean()
+    for val_batch_images_real, val_batch_masks in validation_set:
         # Get predictions
-        batch_predictions = models['F'](batch_images)
-        batch_accuracy = compute_accuracy(batch_predictions, batch_labels)
-        metrics['accuracy'](batch_accuracy)
-        batch_iou = compute_IoU(batch_predictions, batch_labels)
-        metrics['IoU'](batch_iou)
+        val_batch_mask_predictions = models['F'](val_batch_images_real)
+
+        for perm_id in range(2):
+            if perm_id == 0:
+                perm_accuracy = compute_accuracy(val_batch_mask_predictions, val_batch_masks)
+                perm_iou = compute_IoU(val_batch_mask_predictions, val_batch_masks)
+                perm_mean_accuracy_1(perm_accuracy)
+                perm_mean_IoU_1(perm_iou)
+            else:
+                val_batch_mask_predictions = tf.reverse(val_batch_mask_predictions, axis=[-1])
+                perm_accuracy = compute_accuracy(val_batch_mask_predictions, val_batch_masks)
+                perm_iou = compute_IoU(val_batch_mask_predictions, val_batch_masks)
+                perm_mean_accuracy_2(perm_accuracy)
+                perm_mean_IoU_2(perm_iou)
+
+    if perm_mean_accuracy_1.result() >= perm_mean_accuracy_2.result():
+        metrics['accuracy'](perm_mean_accuracy_1.result())
+        metrics['IoU'](perm_mean_IoU_1.result())
+    else:
+        metrics['accuracy'](perm_mean_accuracy_2.result())
+        metrics['IoU'](perm_mean_IoU_2.result())
 
 
 def create_network_objects(args: Namespace) -> Dict:
@@ -253,7 +271,6 @@ def train(args: Namespace, datasets: Dict):
 
         # sample noise vector
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
-        print(z[0, :, 0, 0, :10])
 
         # Update generator
         generator_update(batch_images_real_1, z, models,
