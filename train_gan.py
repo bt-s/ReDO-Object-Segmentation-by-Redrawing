@@ -208,7 +208,7 @@ def validation_step(validation_set: tf.data.Dataset,
     fig.suptitle(title)
     for i in range(5):
         ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
-        ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, foreground_id].numpy()), cmap='gray')
+        ax[i, 1].imshow(batch_masks[i, :, :, foreground_id].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
         ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
         if foreground_id == 0:
             ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
