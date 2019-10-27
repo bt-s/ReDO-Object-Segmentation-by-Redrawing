@@ -189,9 +189,11 @@ def validation_step(validation_set: tf.data.Dataset,
     if perm_mean_accuracy_1.result() >= perm_mean_accuracy_2.result():
         metrics['accuracy'](perm_mean_accuracy_1.result())
         metrics['IoU'](perm_mean_IoU_1.result())
+        foreground_id = 1
     else:
         metrics['accuracy'](perm_mean_accuracy_2.result())
         metrics['IoU'](perm_mean_IoU_2.result())
+        foreground_id = 0
 
     # save image of redrawn images
     val_iter = validation_set.__iter__()
@@ -206,16 +208,20 @@ def validation_step(validation_set: tf.data.Dataset,
     fig.suptitle(title)
     for i in range(5):
         ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
-        ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
+        ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, foreground_id].numpy()), cmap='gray')
         ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
-        ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
-        ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
+        if foreground_id == 0:
+            ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
+        else:
+            ax[i, 3].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(batch_images_fake[i].numpy()))
         [ax[i, j].axis('off') for j in range(5)]
     ax[0, 0].set_title('Image')
     ax[0, 1].set_title('Mask')
     ax[0, 2].set_title('Regions')
-    ax[0, 3].set_title('Fake 1')
-    ax[0, 4].set_title('Fake 2')
+    ax[0, 3].set_title('Fake FG')
+    ax[0, 4].set_title('Fake BG')
     plt.savefig('Images/' + session_name + '/Iteration_' + str(iter) + '.png')
     plt.close()
 
