@@ -138,16 +138,6 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
                                                          z[:, :, 0, 0, :], batch_z_k_hat)
 
-        # save image of redrawn images
-        fig, ax = plt.subplots(5, 5)
-        for i in range(5):
-            ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
-            ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
-            ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
-            ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
-            ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0]+i].numpy()))
-        plt.savefig('generator_update.png')
-
         g_loss = g_loss_d + g_loss_i
 
     # Compute gradients
@@ -169,6 +159,8 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     # Update summary with computed loss
     metrics['g_d_loss'](g_loss_d)
     metrics['g_i_loss'](g_loss_i)
+
+    return batch_images_fake, batch_regions_fake, batch_masks
 
 
 def validation_step(validation_set: tf.data.Dataset,
@@ -283,7 +275,8 @@ def train(args: Namespace, datasets: Dict):
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
 
         # Update generator
-        generator_update(batch_images_real_1, z, models,
+        batch_images_fake, batch_regions_fake, batch_masks = \
+            generator_update(batch_images_real_1, z, models,
                          metrics, optimizers, adversarial_loss)
 
         # Update discriminator
@@ -308,6 +301,23 @@ def train(args: Namespace, datasets: Dict):
             # Reset metrics after checkpoint
             [metric.reset_states() for metric in metrics.values()]
 
+            # save image of redrawn images
+            fig, ax = plt.subplots(5, 5)
+            fig.title('Iteration: ', iter)
+            for i in range(5):
+                ax[i, 0].imshow(normalize_contrast(batch_images_real_1[i].numpy()))
+                ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
+                ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
+                ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
+                ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real_1.shape[0] + i].numpy()))
+                [ax[i, j].axis('off') for j in range(5)]
+            ax[0, 0].set_title('Input Image')
+            ax[1, 0].set_title('Mask')
+            ax[2, 0].set_title('Fake Regions')
+            ax[3, 0].set_title('Fake Image 1')
+            ax[4, 0].set_title('Fake Image 2')
+            plt.savefig('generator_update_iter_' + str(iter) + '.png')
+            plt.close()
 
 def main(args: Namespace):
     tf.get_logger().setLevel(args.log_level)
