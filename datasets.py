@@ -116,7 +116,7 @@ class Dataset:
                                 preserve_aspect_ratio=False)
 
         # standardize image
-        image = tf.image.per_image_standardization(image)
+        image = (image / 255.0) * 2 - 1
 
         # binarize and create one-hot label
         # threshold for minimum intensity of object in non-binary label
@@ -310,8 +310,8 @@ class FlowerDataset(Dataset):
         label = tf.image.resize(label, size=(128, 128),
                                 preserve_aspect_ratio=False)
 
-        # standardize image
-        image = tf.image.per_image_standardization(image)
+        # center image
+        image = (image / 255.0) * 2 - 1
 
         # binarize and get one-hot label
         background_color = 29
@@ -417,7 +417,7 @@ class FaceDataset(Dataset):
                                 preserve_aspect_ratio=False)
 
         # standardize image
-        image = tf.image.per_image_standardization(image)
+        image = (image / 255.0) * 2 - 1
 
         # binarize and get one-hot label
         # threshold for minimum intensity of object innon-binary label
