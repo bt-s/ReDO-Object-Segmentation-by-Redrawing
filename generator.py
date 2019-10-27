@@ -34,7 +34,7 @@ class ConditionalBatchNormalization(Layer):
         super(ConditionalBatchNormalization, self).__init__()
 
         # Instance Normalization | shifting and scaling switched off
-        self.in_1 = InstanceNormalization(center=False, scale=False)
+        self.norm = InstanceNormalization(center=False, scale=False)
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
@@ -54,7 +54,7 @@ class ConditionalBatchNormalization(Layer):
             x: Output tensor of conditional batch normalization layer
         """
         # Pass input through Instance Normalization layer
-        x = self.in_1(x)
+        x = self.norm(x)
 
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
@@ -84,7 +84,7 @@ class InputBlock(Layer):
         # Number of output channels
         self.output_channels = base_channels*output_factor
 
-        # Fully-connected layer with number of output channels * 4 * 4 units
+        # Initial dense layer (implemented as 1x1 convolution) | Number of output channels*16
         # for reshaping into 4x4 feature maps
         self.dense = SpectralNormalization(Conv2D(filters=self.output_channels * 4 * 4, kernel_size=(1, 1),
                 kernel_initializer=orthogonal(gain=init_gain)))
@@ -101,11 +101,11 @@ class InputBlock(Layer):
         Returns:
             x: Output tensor
         """
-        # Reshape output of fully-connected layer
+        # Reshape output of dense layer
         x = self.dense(z_k, training)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
-        # Apply CBN
+        # Apply CBN and relu
         x = self.cbn(x, z_k)
         x = self.relu(x)
 
@@ -136,7 +136,7 @@ class ResidualUpsamplingBlock(Layer):
         self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
 
         # Perform 1x1 convolutions on the identity to adjust the number of
-        # channels to the output of the computational
+        # channels to the output of the residual pipeline
         self.process_identity = tf.keras.Sequential()
         self.process_identity.add(UpSampling2D(size=(2, 2), interpolation='bilinear'))
         self.process_identity.add(SpectralNormalization(Conv2D(
@@ -173,23 +173,23 @@ class ResidualUpsamplingBlock(Layer):
             x: Output tensor
         """
         # Process identity
-        identity = self.process_identity(x)
+        x = self.process_identity(x)
 
         # Res block computations
-        x = self.cbn_1(x, z_k)
-        x = self.relu(x)
+        h = self.cbn_1(x, z_k)
+        h = self.relu(h)
         # Down-sample and concatenate mask
         masks = tf.cast(self.mask_pool(masks), tf.float32)
-        x = tf.concat((x, masks), axis=3)
+        h = tf.concat((h, masks), axis=3)
         # Upsample feature maps
-        x = self.upsample(x)
-        x = self.conv_1(x, training)
-        x = self.cbn_2(x, z_k)
-        x = self.relu(x)
-        x = self.conv_2(x, training)
+        h = self.upsample(h)
+        h = self.conv_1(h, training)
+        h = self.cbn_2(h, z_k)
+        h = self.relu(h)
+        h = self.conv_2(h, training)
 
         # Skip-connection
-        x += identity
+        x += h
 
         return x
 
@@ -299,20 +299,19 @@ class ClassGenerator(Model):
                 base_channels=self.base_channels, output_factor=1)
 
     def call(self, batch_images_real: tf.Tensor, batch_masks: tf.Tensor, z_k: tf.Tensor,
-            n_input: Tuple, training: bool) -> Tuple[tf.Tensor, tf.Tensor]:
+             training: bool) -> Tuple[tf.Tensor, tf.Tensor]:
         """Forward pass of the generator network - create a batch of fake images
 
         Args:
             batch_images_real: Batch of images taken from the dataset
             batch_masks: Extracted segmentation masks of shape:
                          [batch_size, height, width, n_classes-1]
-            n_input: Dimensionality of the noise vector
+            z_k: Noise vector for respective class
             training: Whether we are training
 
         Returns:
             batch_images_fake: Generated fake images
             batch_region_k_fake: Generated fake regions
-            z_k: Generated noise vector
         """
 
         # Number of different regions

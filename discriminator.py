@@ -17,8 +17,7 @@ from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from typing import Union, Tuple
 
-from network_components import SelfAttentionModule, SpectralNormalization, \
-        ResidualBlock
+from network_components import SelfAttentionModule, ResidualBlock
 
 
 class Discriminator(Model):

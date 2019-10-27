@@ -34,16 +34,56 @@ class SpectralNormalization(Layer):
         # Conv2D layer's weights haven't been initialized yet
         self.init = False
 
-    def build(self, input_shape):
-        #TODO: provide a docstring and type-hinting here
-        # u cannot be initialized yet, since the kernel shape is
-        # not known yet
+        # Initialize u
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
             initializer=tf.initializers.RandomNormal, trainable=False)
 
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Perform forward pass of Conv2D layer on first iteration to initialize
+        the weights
+
+        Args:
+            x:
+            training:
+        """
+        # Perform forward pass of Conv2D layer on first iteration to initialize
+        # the weights. Introduce 'kernel_orig' as trainable variables
+        if not self.init:
+            # Initialize Conv2D layer
+            _ = self.layer(x)
+
+            self.layer.kernel_orig = self.layer.add_weight('kernel_orig',
+                                                           self.layer.kernel.shape, trainable=True)
+            weights = self.layer.get_weights()
+            # Set 'kernel_orig' to network's weights. 'kernel_orig' will be
+            # updated, 'kernel' will be normalized and used in the forward pass
+            if len(weights) == 2:
+                # Conv layer without bias
+                self.layer.set_weights([weights[0], weights[0]])
+                tf.assert_equal(self.layer.weights[0], self.layer.weights[1])
+
+            else:
+                # Conv layer with bias
+                self.layer.set_weights([weights[0], weights[1],
+                                        weights[0]])
+                tf.assert_equal(self.layer.weights[0], self.layer.weights[2])
+
+            # SN layer initialized
+            self.init = True
+
+        # Normalize weights
+        W_sn = self.normalize_weights(training=training)
+
+        # assign normalized weights to kernel for forward pass
+        self.layer.kernel = W_sn
+        # perform forward pass of Conv2d layer
+        output = self.layer(x)
+
+        return output
+
     def normalize_weights(self, training: bool):
-        #TODO: provide a docstring and type-hinting here
         """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
+
         # Number of filter kernels in Conv2D layer
         filters = self.layer.weights[0].shape.as_list()[-1]
 
@@ -61,7 +101,7 @@ class SpectralNormalization(Layer):
 
         if training:
             # Update estimate of singular vector during training
-            self.u = u
+            self.u.assign(u)
 
         return W_sn
 
@@ -85,7 +125,6 @@ class SpectralNormalization(Layer):
 
         return spectral_norm, u
 
-
     @staticmethod
     def normalize_l2(v: tf.Tensor, epsilon: float=1e-12) -> tf.Tensor:
         """Normalize input matrix w.r.t. its euclidean norm
@@ -98,46 +137,6 @@ class SpectralNormalization(Layer):
             l2-normalized input matrix
         """
         return v / (tf.math.reduce_sum(v**2)**0.5 + epsilon)
-
-
-    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
-        """Perform forward pass of Conv2D layer on first iteration to initialize
-        the weights
-
-        Args:
-            x:
-            training:
-        """
-        # Perform forward pass of Conv2D layer on first iteration to initialize
-        # the weights. Introduce 'kernel_orig' as trainable variables
-        if not self.init:
-            _ = self.layer(x)
-            self.layer.kernel_orig = self.add_weight('kernel_orig',
-                    self.layer.kernel.shape, trainable=True)
-            weights = self.layer.get_weights()
-            # Set 'kernel_orig' to network's weights. 'kernel_orig' will be
-            # updated, 'kernel' will be normalized and used in the forward pass
-            if len(weights) == 2:
-                # Conv layer without bias
-                self.layer.set_weights([weights[0], tf.identity(weights[0])])
-            else:
-                # Conv layer with bias
-                self.layer.set_weights([tf.identity(weights[0]), weights[1],
-                    tf.identity(weights[0])])
-
-            # SN layer initialized
-            self.init = True
-
-        # Normalize weights
-        W_sn = self.normalize_weights(training=training)
-
-        # assign normalized weights to kernel for forward pass
-        self.layer.kernel = W_sn
-
-        # perform forward pass of Conv2d layer
-        output = self.layer(x)
-
-        return output
 
 
 class SelfAttentionModule(Layer):
