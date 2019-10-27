@@ -284,7 +284,7 @@ def train(args: Namespace, datasets: Dict):
                              models, metrics, adversarial_loss)
 
         # Checkpoint
-        if iter % args.checkpoint_iter == 0:
+        if iter % args.checkpoint_iter == 0 and iter != 0:
             # Save model weights
             for model in models.values():
                 if model.model_name == 'Segmentation_Network':
@@ -313,12 +313,13 @@ def train(args: Namespace, datasets: Dict):
                 ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real_1.shape[0] + i].numpy()))
                 [ax[i, j].axis('off') for j in range(5)]
             ax[0, 0].set_title('Input Image')
-            ax[1, 0].set_title('Mask')
-            ax[2, 0].set_title('Fake Regions')
-            ax[3, 0].set_title('Fake Image 1')
-            ax[4, 0].set_title('Fake Image 2')
-            plt.savefig('generator_update_iter_' + str(iter) + '.png')
+            ax[0, 1].set_title('Mask')
+            ax[0, 2].set_title('Fake Regions')
+            ax[0, 3].set_title('Fake Image 1')
+            ax[0, 4].set_title('Fake Image 2')
+            plt.savefig('Images/Iteration_' + str(iter) + '.png')
             plt.close()
+
 
 def main(args: Namespace):
     tf.get_logger().setLevel(args.log_level)
