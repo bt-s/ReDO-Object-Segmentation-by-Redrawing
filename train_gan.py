@@ -303,7 +303,8 @@ def train(args: Namespace, datasets: Dict):
 
             # save image of redrawn images
             fig, ax = plt.subplots(5, 5)
-            fig.suptitle('Iteration: ', iter)
+            title = 'Iteration: ' + str(iter)
+            fig.suptitle(title)
             for i in range(5):
                 ax[i, 0].imshow(normalize_contrast(batch_images_real_1[i].numpy()))
                 ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
