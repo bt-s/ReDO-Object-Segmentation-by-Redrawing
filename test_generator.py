@@ -95,3 +95,12 @@ if __name__ == '__main__':
     ax[2].imshow(image_fake_fg)
     plt.show()
 
+    fig, ax = plt.subplots(3, 2)
+    ax[0, 0].imshow(batch_images_real[0].numpy())
+    ax[1, 0].imshow(batch_regions_fake[0].numpy())
+    ax[0, 1].imshow(batch_images_fake[0].numpy())
+    ax[1, 1].imshow(batch_images_fake[1].numpy())
+    ax[2, 0].imshow(batch_masks[0, :, :, 0].numpy(), cmap='gray')
+    ax[2, 1].imshow(batch_masks[0, :, :, 1].numpy(), cmap='gray')
+    plt.show()
+
