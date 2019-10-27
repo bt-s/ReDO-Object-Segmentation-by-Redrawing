@@ -24,13 +24,13 @@ if __name__ == '__main__':
 
     # Create datasets
     dataset = FlowerDataset()
-    test_dataset = dataset.get_split('validation', batch_size=25)
+    test_dataset = dataset.get_split('test', batch_size=25)
 
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=0.0, weight_decay=1e-4)
 
-    iteration = 5100
+    iteration = 2100
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))
 

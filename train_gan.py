@@ -94,7 +94,7 @@ def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf
         d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(
             d_logits_real, d_logits_fake)
 
-        d_loss = d_loss_real + d_loss_fake
+        d_loss = -d_loss_real - d_loss_fake
 
     # Compute gradients
     d_gradients = tape.gradient(d_loss, models['D'].trainable_variables)
@@ -137,6 +137,16 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         # Compute generator loss for current batch
         g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
                                                          z[:, :, 0, 0, :], batch_z_k_hat)
+
+        # save image of redrawn images
+        fig, ax = plt.subplots(5, 5)
+        for i in range(5):
+            ax[i, 0].imshow(batch_images_real[i].numpy())
+            ax[i, 1].imshow(batch_masks[i, :, :, 1].numpy())
+            ax[i, 2].imshow(batch_regions_fake[i].numpy())
+            ax[i, 3].imshow(batch_images_fake[i].numpy())
+            ax[i, 4].imshow(batch_images_fake[batch_images_real.shape[0]+i].numpy())
+        plt.show()
 
         g_loss = g_loss_d + g_loss_i
 

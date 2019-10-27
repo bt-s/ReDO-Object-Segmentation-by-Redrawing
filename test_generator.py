@@ -60,10 +60,11 @@ if __name__ == '__main__':
     masks = tf.math.sigmoid(masks)
 
     with tf.GradientTape() as tape:
-        batch_image_fake, batch_regions_fake, z_k = generator(image_real, masks,
+        z = tf.random.normal([1, 2, 1, 1, 32])
+        batch_image_fake, batch_regions_fake = generator(image_real, masks, z,
                 update_generator=True, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
-        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z_k, z_k)
+        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z, z)
         g_loss = g_loss_d + g_loss_i
         print('Generator loss (discriminator): ', g_loss_d)
         print('Generator loss (information): ', g_loss_i)
@@ -95,12 +96,4 @@ if __name__ == '__main__':
     ax[2].imshow(image_fake_fg)
     plt.show()
 
-    fig, ax = plt.subplots(3, 2)
-    ax[0, 0].imshow(batch_images_real[0].numpy())
-    ax[1, 0].imshow(batch_regions_fake[0].numpy())
-    ax[0, 1].imshow(batch_images_fake[0].numpy())
-    ax[1, 1].imshow(batch_images_fake[1].numpy())
-    ax[2, 0].imshow(batch_masks[0, :, :, 0].numpy(), cmap='gray')
-    ax[2, 1].imshow(batch_masks[0, :, :, 1].numpy(), cmap='gray')
-    plt.show()
 

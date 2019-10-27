@@ -76,8 +76,8 @@ class UnsupervisedLoss(Loss):
         zeros_f = tf.fill(d_logits_fake.shape, 0.0)
         zeros_r = tf.fill(d_logits_real.shape, 0.0)
 
-        d_loss_r = tf.reduce_mean(tf.math.maximum(zeros_r, 1 - d_logits_real))
-        d_loss_f = tf.reduce_mean(tf.math.maximum(zeros_f, 1 + d_logits_fake))
+        d_loss_r = tf.reduce_mean(tf.math.minimum(zeros_r, -1 + d_logits_real))
+        d_loss_f = tf.reduce_mean(tf.math.minimum(zeros_f, -1 - d_logits_fake))
 
         return d_loss_r, d_loss_f
 

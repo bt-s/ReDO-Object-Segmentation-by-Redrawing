@@ -172,8 +172,6 @@ class ResidualUpsamplingBlock(Layer):
         Returns:
             x: Output tensor
         """
-        # Process identity
-        x = self.process_identity(x)
 
         # Res block computations
         h = self.cbn_1(x, z_k)
@@ -187,6 +185,9 @@ class ResidualUpsamplingBlock(Layer):
         h = self.cbn_2(h, z_k)
         h = self.relu(h)
         h = self.conv_2(h, training)
+
+        # Process identity
+        x = self.process_identity(x)
 
         # Skip-connection
         x += h
@@ -416,8 +417,8 @@ class Generator(Model):
 
             # Generate batch of fake images
             batch_images_k_fake, batch_region_k_fake = \
-                            self.class_generators[k](batch_images_real, batch_masks, z[:, k],
-                                    n_input=self.n_input, training=training)
+                            self.class_generators[k](batch_images_real, batch_masks, z[:, k]
+                                                     , training=training)
 
             if batch_images_fake is None:
                 batch_images_fake = batch_images_k_fake
