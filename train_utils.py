@@ -19,6 +19,7 @@ from tensorflow.keras.losses import Loss, BinaryCrossentropy, \
     CategoricalCrossentropy
 from tensorflow.keras.metrics import Mean
 from typing import Dict, Tuple
+import numpy as np
 
 
 class UnsupervisedLoss(Loss):
@@ -419,3 +420,9 @@ def log_training(metrics: Dict[str, Mean],
                                metrics['d_r_loss'].result(),
                                metrics['accuracy'].result(),
                                metrics['IoU'].result()))
+
+
+def normalize_contrast(image):
+    image -= np.min(image)
+    image /= (np.max(image) - np.min(image))
+    return image

@@ -22,7 +22,7 @@ import logging
 from typing import Dict, Tuple
 
 from datasets import BirdDataset, FlowerDataset, FaceDataset
-from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy
+from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy, normalize_contrast
 from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
@@ -141,11 +141,11 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
         # save image of redrawn images
         fig, ax = plt.subplots(5, 5)
         for i in range(5):
-            ax[i, 0].imshow(batch_images_real[i].numpy())
-            ax[i, 1].imshow(batch_masks[i, :, :, 1].numpy())
-            ax[i, 2].imshow(batch_regions_fake[i].numpy())
-            ax[i, 3].imshow(batch_images_fake[i].numpy())
-            ax[i, 4].imshow(batch_images_fake[batch_images_real.shape[0]+i].numpy())
+            ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
+            ax[i, 1].imshow(normalize_contrast(batch_masks[i, :, :, 1].numpy()), cmap='gray')
+            ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
+            ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0]+i].numpy()))
         plt.savefig('generator_update.png')
 
         g_loss = g_loss_d + g_loss_i
@@ -243,11 +243,11 @@ def train(args: Namespace, datasets: Dict):
     adversarial_loss = UnsupervisedLoss(lambda_z=args.lambda_z)
 
     # Define optimizers
-    g_optimizer = Adam(learning_rate=1.1*args.learning_rate_other,
+    g_optimizer = Adam(learning_rate=args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
-    d_optimizer = Adam(learning_rate=0.9*args.learning_rate_other,
+    d_optimizer = Adam(learning_rate=args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
-    i_optimizer = Adam(learning_rate=1.1*args.learning_rate_other,
+    i_optimizer = Adam(learning_rate=args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
     f_optimizer = Adam(learning_rate=args.learning_rate_mask,
                        beta_1=args.beta_1, beta_2=args.beta_2)

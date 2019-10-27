@@ -263,6 +263,11 @@ class BirdDataset(Dataset):
 
             split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
             split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
+        else:
+            indices = tf.range(0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            shuffled_indices = tf.random.shuffle(indices)
+            split_image_paths = tf.gather(split_image_paths, shuffled_indices)
+            split_label_paths = tf.gather(split_label_paths, shuffled_indices)
 
         # create tf.data.dataset objects for images and labels
         # zip datasets to create (image, label) dataset
@@ -379,6 +384,11 @@ class FaceDataset(Dataset):
 
             split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
             split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
+        else:
+            indices = tf.range(0, split_image_paths.shape[0], dtype=tf.dtypes.int64)
+            shuffled_indices = tf.random.shuffle(indices)
+            split_image_paths = tf.gather(split_image_paths, shuffled_indices)
+            split_label_paths = tf.gather(split_label_paths, shuffled_indices)
 
         # create tf.data.dataset objects for images and labels
         # zip datasets to create (image, label) dataset
