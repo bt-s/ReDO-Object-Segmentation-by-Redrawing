@@ -39,7 +39,7 @@ class ConditionalBatchNormalization(Layer):
         self.k = tf.math.sqrt(1 / filters)
 
         # Instance Normalization | shifting and scaling switched off
-        self.norm = InstanceNormalization(center=False, scale=False)
+        self.norm = InstanceNormalization(center=True, scale=True)
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
@@ -62,11 +62,11 @@ class ConditionalBatchNormalization(Layer):
         x = self.norm(x)
 
         # Get conditional gamma and beta
-        gamma_c = self.gamma(z_k)
-        beta_c = self.beta(z_k)
+        #gamma_c = self.gamma(z_k)
+        #beta_c = self.beta(z_k)
 
         # Compute output
-        x = gamma_c * x + beta_c
+        #x = gamma_c * x + beta_c
 
         return x
 
@@ -180,8 +180,6 @@ class ResidualUpsamplingBlock(Layer):
         # CBN and ReLU
         h = self.cbn_1.call(x, z_k)
         h = self.relu(h)
-        ns = tf.cast(tf.math.count_nonzero(h), tf.float32) / tf.cast(tf.size(h), tf.float32)
-        print(ns.numpy())
 
         # Down-sample and concatenate mask
         masks = self.mask_pool(masks_k)
@@ -194,9 +192,6 @@ class ResidualUpsamplingBlock(Layer):
         # CBN, ReLU, Conv2D
         h = self.cbn_2.call(h, z_k)
         h = self.relu(h)
-        ns = tf.cast(tf.math.count_nonzero(h), tf.float32) / tf.cast(tf.size(h), tf.float32)
-        print(ns.numpy())
-
         h = self.conv_2.call(h, training)
 
         # Process identity
@@ -257,8 +252,7 @@ class OutputBlock(Layer):
 
         # Perform convolution
         x = self.conv.call(x, training)
-        print('Min: ', tf.reduce_min(x))
-        print('Min: ', tf.reduce_max(x))
+
         # Tanh activation
         x = tf.keras.activations.tanh(x)
 
