@@ -59,7 +59,11 @@ class ConditionalBatchNormalization(Layer):
             x: Output tensor of conditional batch normalization layer
         """
         # Pass input through Instance Normalization layer
-        x = self.norm(x)
+        #x = self.norm(x)
+        mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=(1, 2))
+        std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=(1, 2))
+        x = (x - mean) / std
+
         print(tf.math.reduce_mean(x[0], axis=(0, 1)))
         print(tf.math.reduce_std(x[0], axis=(0, 1)))
         # Get conditional gamma and beta
