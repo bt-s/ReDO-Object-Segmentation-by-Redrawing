@@ -10,6 +10,7 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
+from tensorflow.initializers import RandomNormal
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
@@ -19,7 +20,7 @@ from typing import Tuple, Union
 class SpectralNormalization(Layer):
     """Spectral normalization layer to wrap around a Conv2D Layer. Kernel
     weights are normalized before each forward pass."""
-    def __init__(self, layer: Conv2D, n_power_iterations: int=1):
+    def __init__(self, layer: Conv2D, n_power_iterations: int = 1):
         """Class constructor
 
         Attributes:
@@ -28,15 +29,20 @@ class SpectralNormalization(Layer):
         """
         super(SpectralNormalization, self).__init__()
 
+        # Conv2D containing weights to be normalized
         self.layer = layer
+
+        # Number of power iterations (spectral norm approximation)
         self.n_power_iterations = n_power_iterations
 
         # Conv2D layer's weights haven't been initialized yet
+        # Will be initialized on first forward pass
         self.init = False
 
-        # Initialize u
+        # Initialize u (approximated singular vector)
+        # Non-trainable variable will be updated every iteration
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
-            initializer=tf.initializers.RandomNormal, trainable=False)
+            initializer=RandomNormal, trainable=False)
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform forward pass of Conv2D layer on first iteration to initialize
@@ -54,28 +60,31 @@ class SpectralNormalization(Layer):
 
             self.layer.kernel_orig = self.layer.add_weight('kernel_orig',
                                                            self.layer.kernel.shape, trainable=True)
+
+            # Get layer's weights. Contains 'kernel', 'kernel_orig' and possibly 'bias'
             weights = self.layer.get_weights()
+
             # Set 'kernel_orig' to network's weights. 'kernel_orig' will be
             # updated, 'kernel' will be normalized and used in the forward pass
             if len(weights) == 2:
                 # Conv layer without bias
                 self.layer.set_weights([weights[0], weights[0]])
-                tf.assert_equal(self.layer.weights[0], self.layer.weights[1])
-
             else:
                 # Conv layer with bias
                 self.layer.set_weights([weights[0], weights[1],
                                         weights[0]])
-                tf.assert_equal(self.layer.weights[0], self.layer.weights[2])
 
             # SN layer initialized
             self.init = True
 
-        # Normalize weights
+        # Normalize weights before every forward pass
         W_sn = self.normalize_weights(training=training)
 
         # assign normalized weights to kernel for forward pass
+        # Weight's are assigned as tf.Tensor in order not to
+        # add a new variable to the model
         self.layer.kernel = W_sn
+
         # perform forward pass of Conv2d layer
         output = self.layer(x)
 
@@ -126,7 +135,7 @@ class SpectralNormalization(Layer):
         return spectral_norm, u
 
     @staticmethod
-    def normalize_l2(v: tf.Tensor, epsilon: float=1e-12) -> tf.Tensor:
+    def normalize_l2(v: tf.Tensor, epsilon: float = 1e-12) -> tf.Tensor:
         """Normalize input matrix w.r.t. its euclidean norm
 
         Args:
@@ -142,7 +151,7 @@ class SpectralNormalization(Layer):
 class SelfAttentionModule(Layer):
     """Self-attention component for GANs"""
     def __init__(self, init_gain: float, output_channels: int,
-            key_size: int=None):
+            key_size: int = None):
         """Class constructor
 
         Attributes:
@@ -158,6 +167,7 @@ class SelfAttentionModule(Layer):
             self.key_size = key_size
 
         # Trainable parameter to control influence of learned attention maps
+        # Initialize to 0, so network can learn to use attention maps
         self.gamma = self.add_weight(name='self_attention_gamma',
                 initializer=tf.zeros_initializer())
 
@@ -178,6 +188,16 @@ class SelfAttentionModule(Layer):
             kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain),
             use_bias=False))
 
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Perform call of attention layer
+        Args:
+            x: Input to the residual block
+            training: Whether we are training
+        """
+        o = self.compute_attention(x, training)
+        y = self.gamma * o + x
+
+        return y
 
     def compute_attention(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Compute attention maps
@@ -194,57 +214,47 @@ class SelfAttentionModule(Layer):
 
         # Compute and reshape features
         fx = tf.reshape(self.f(x, training), [-1, h * w, self.key_size])
-        gx = self.g(x, training)
+        gx = self.g.call(x, training)
 
-        # Downsample features to reduce memory print
+        # Down-sample features to reduce memory print
         gx = self.max_pool(gx)
         gx = tf.reshape(gx, [-1, (h * w)//4, self.key_size])
         s = tf.matmul(fx, gx, transpose_b=True)
 
         beta = Softmax(axis=2)(s)
 
-        hx = self.h(x, training)
+        hx = self.h.call(x, training)
         hx = self.max_pool(hx)
         hx = tf.reshape(hx, [-1, (h * w)//4, c//2])
 
         interim = tf.matmul(beta, hx)
         interim = tf.reshape(interim, [-1, h, w, c//2])
-        o = self.out(interim, training)
+        o = self.out.call(interim, training)
 
         return o
-
-
-    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
-        """Perform call of attention layer
-        Args:
-            x: Input to the residual block
-            training: Whether we are training
-        """
-        o = self.compute_attention(x, training)
-        y = self.gamma * o + x
-
-        return y
 
 
 class ResidualBlock(Layer):
     """Residual computation block with down-sampling option and variable number
     of output channels."""
     def __init__(self, init_gain: float, stride: Union[int, Tuple[int, int]],
-            output_channels: int, downsample=True, first_block=False):
+            output_channels: int, first_block=False, last_block=False):
         """Class constructor
 
         Args:
             init_gain: Initializer gain for orthogonal initialization
             stride: Stride of the convolutional layers
             output_channels: Number of output channels
+            first_block: True if first residual block of network
+            last_block: True if last residual block of network
         """
         super(ResidualBlock, self).__init__()
 
         # True if first residual block in the network
         self.first_block = first_block
 
-        # True if input is down-sampled by block
-        self.downsample = downsample
+        # True if last residual block in the network
+        self.last_block = last_block
 
         # Perform 1x1 convolutions on the identity to adjust the number of
         # channels to the output of the residual pipeline
@@ -262,8 +272,7 @@ class ResidualBlock(Layer):
             kernel_initializer=orthogonal(gain=init_gain)))
 
         # only create pooling layer if down-sampling block
-        if downsample:
-            self.pool = AveragePooling2D(pool_size=(2, 2))
+        self.pool = AveragePooling2D(pool_size=(2, 2))
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of residual block layer call
@@ -272,31 +281,31 @@ class ResidualBlock(Layer):
             x: Input to the residual block
             training: Whether we are training
         """
-        # Save identity
-        identity = tf.identity(x)
 
         # Perform ReLU if not first block
         if not self.first_block:
-            x = self.relu(x)
+            h = self.relu(x)
+        else:
+            h = x
 
         # Pass input through pipeline
-        x = self.conv_1(x, training)
-        x = self.relu(x)
-        x = self.conv_2(x, training)
+        h = self.conv_1.call(h, training)
+        h = self.relu(h)
+        h = self.conv_2.call(h, training)
 
         # Down-sample residual features
-        if self.downsample:
-            x = self.pool(x)
+        if not self.last_block:
+            h = self.pool(h)
 
         # Process identity
-        if x.shape != identity.shape:
+        if h.shape != x.shape:
             # Down-sample identity to match residual dimensions
-            if self.downsample:
-                identity = self.pool(identity)
-            identity = self.process_identity(identity, training)
+            if not self.last_block:
+                x = self.pool(x)
+            x = self.process_identity.call(x, training)
 
         # Skip-connection
-        x += identity
+        x += h
 
         return x
 
