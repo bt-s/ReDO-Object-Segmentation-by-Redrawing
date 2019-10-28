@@ -19,6 +19,8 @@ from tensorflow.keras.initializers import orthogonal
 from typing import Union, List, Tuple
 from normalizations import InstanceNormalization
 from network_components import SelfAttentionModule, SpectralNormalization
+from train_utils import normalize_contrast
+import matplotlib.pyplot as plt
 
 
 class ConditionalBatchNormalization(Layer):
@@ -59,7 +61,7 @@ class ConditionalBatchNormalization(Layer):
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
-
+        print('Gamma: ', gamma_c)
         # Compute output
         x = gamma_c * x + beta_c
 
@@ -340,10 +342,28 @@ class ClassGenerator(Model):
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
                 batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
                         training=training)
+                print(batch_region_k_fake.shape)
+                print(batch_masks_k.shape)
+
+                fig, ax = plt.subplots(3, 3)
+                ax = ax.flatten()
+                ax[0].imshow(batch_masks_k[0, :, :, 0].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
+                mask_title = 'Mask ' + str(self.k)
+                ax[0].set_title(mask_title)
+
+                ax[1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
+                ax[1].title('Fake')
+
                 batch_region_k_fake *= batch_masks_k
+
+                ax[2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
+                ax[2].title('Fake * M')
 
                 # Add redrawn regions to batch of fake images
                 batch_images_fake += batch_region_k_fake
+
+                ax[3].imshow(normalize_contrast(batch_images_fake[0, :, :, :].numpy()))
+                ax[3].set_title('F. Image')
 
             # Re-use input image for other regions
             else:
@@ -354,6 +374,13 @@ class ClassGenerator(Model):
                             axis=3)
 
                 batch_images_fake += batch_images_real * batch_masks_inv
+                ax[4].imshow(batch_masks_inv[0, :, :, 0].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
+                ax[4].set_title('Mask Inv')
+
+                ax[5].imshow(normalize_contrast(batch_images_fake[0, :, :, :].numpy()))
+                ax[5].set_title('Fake')
+                plt.savefig('region_generator_' + str(self.k) + '.png')
+                plt.close()
 
         return batch_images_fake, batch_region_k_fake
 
