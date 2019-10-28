@@ -26,18 +26,15 @@ class UnsupervisedLoss(Loss):
     """Unsupervised loss for generator/discriminator/information/mask networks"""
     def __init__(self, lambda_z: float):
         """Class constructor
-
         Attributes:
             lambda_z: Multiplicative factor for information conservation loss
         """
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
-
     def get_g_loss(self, d_logits_fake: tf.Tensor, z: tf.Tensor,
-            z_hat: tf.Tensor) -> Tuple[float, float]:
+                   z_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
-
         Args:
             d_logits_fake: Probabilities of the fake images, based on the
                            discriminator (batch_size*number of classes, 1)
@@ -45,23 +42,25 @@ class UnsupervisedLoss(Loss):
                            size of noise vector)
             z_hat: Output of the information network (batch_size*number of
                      classes, size of noise vector)
-
         Returns:
             g_loss_d: Generator loss (discriminator)
             g_loss_i: Generator loss (information)
         """
+
+        # Ensure same shape of noise vector and estimate
+        z = z[:, :, 0, 0, :]
+        tf.assert_equal(z.shape, z_hat.shape)
+
         # Compute generator loss (the discriminator prediction of fake images
         # should be 1)
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
-        z = z[:, :, 0, 0, :]
-        tf.assert_equal(z.shape, z_hat.shape)
         g_loss_i = self.lambda_z * tf.reduce_mean((z - z_hat)*(z - z_hat))
 
         return g_loss_d, g_loss_i
 
     @staticmethod
-    def get_d_loss(d_logits_real: tf.Tensor,
-                   d_logits_fake: tf.Tensor) -> Tuple[float, float]:
+    def get_d_loss(d_logits_real: tf.Tensor, d_logits_fake: tf.Tensor)\
+            -> Tuple[float, float]:
         """Compute the discriminator loss
 
         Args:
@@ -74,6 +73,7 @@ class UnsupervisedLoss(Loss):
             d_loss_r: Discriminator loss (real)
             d_loss_f: Discriminator loss (fake)
         """
+
         # Compute both parts of discriminator loss | the prediction of fake
         # images should be 0, prediction of real images should be 1
         zeros_f = tf.fill(d_logits_fake.shape, 0.0)
