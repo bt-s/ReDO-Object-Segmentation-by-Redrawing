@@ -180,7 +180,7 @@ class ResidualUpsamplingBlock(Layer):
         # CBN and ReLU
         h = self.cbn_1.call(x, z_k)
         h = self.relu(h)
-        ns = tf.math.count_nonzero(h) / tf.size(h)
+        ns = tf.cast(tf.math.count_nonzero(h), tf.float32) / tf.cast(tf.size(h), tf.float32)
         print(ns.numpy())
 
         # Down-sample and concatenate mask
@@ -194,7 +194,7 @@ class ResidualUpsamplingBlock(Layer):
         # CBN, ReLU, Conv2D
         h = self.cbn_2.call(h, z_k)
         h = self.relu(h)
-        ns = tf.math.count_nonzero(h) / tf.size(h)
+        ns = tf.cast(tf.math.count_nonzero(h), tf.float32) / tf.cast(tf.size(h), tf.float32)
         print(ns.numpy())
 
         h = self.conv_2.call(h, training)
