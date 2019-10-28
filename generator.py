@@ -61,7 +61,7 @@ class ConditionalBatchNormalization(Layer):
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
-        print('Gamma: ', gamma_c)
+        print('Gamma: ', gamma_c.shape)
         # Compute output
         x = gamma_c * x + beta_c
 
@@ -352,12 +352,12 @@ class ClassGenerator(Model):
                 ax[0].set_title(mask_title)
 
                 ax[1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
-                ax[1].title('Fake')
+                ax[1].set_title('Fake')
 
                 batch_region_k_fake *= batch_masks_k
 
                 ax[2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
-                ax[2].title('Fake * M')
+                ax[2].set_title('Fake * M')
 
                 # Add redrawn regions to batch of fake images
                 batch_images_fake += batch_region_k_fake
