@@ -60,8 +60,11 @@ class ConditionalBatchNormalization(Layer):
         """
         # Pass input through Instance Normalization layer
         #x = self.norm(x)
-        mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=(1, 2))
-        std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=(1, 2))
+        mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
+        mean = tf.expand_dims(mean, axis=2)
+        std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
+        std = tf.expand_dims(std, axis=2)
+
         x = (x - mean) / std
 
         print(tf.math.reduce_mean(x[0], axis=(0, 1)))
