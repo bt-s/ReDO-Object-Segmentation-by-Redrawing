@@ -351,8 +351,18 @@ class ClassGenerator(Model):
                 ax[1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
                 ax[1].set_title('Fake')
 
+                fig1, ax1 = plt.subplots(2, 3)
+                ax1[0, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray')
+                ax1[0, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray')
+                ax1[0, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray')
                 batch_region_k_fake *= batch_masks_k
+                ax1[1, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray')
+                ax1[1, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray')
+                ax1[1, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray')
+                plt.savefig('generator.png')
+                fig1.close()
 
+            
                 ax[2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
                 ax[2].set_title('Fake * M')
 
