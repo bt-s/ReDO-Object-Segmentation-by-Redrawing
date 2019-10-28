@@ -34,16 +34,16 @@ class UnsupervisedLoss(Loss):
         self.lambda_z = lambda_z
 
 
-    def get_g_loss(self, d_logits_fake: tf.Tensor, z_k: tf.Tensor,
-            z_k_hat: tf.Tensor) -> Tuple[float, float]:
+    def get_g_loss(self, d_logits_fake: tf.Tensor, z: tf.Tensor,
+            z_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
 
         Args:
             d_logits_fake: Probabilities of the fake images, based on the
                            discriminator (batch_size*number of classes, 1)
-            z_k: Recovered sampled noise vector (batch_size*number of classes,
+            z: Recovered sampled noise vector (batch_size*number of classes,
                            size of noise vector)
-            z_k_hat: Output of the information network (batch_size*number of
+            z_hat: Output of the information network (batch_size*number of
                      classes, size of noise vector)
 
         Returns:
@@ -53,7 +53,9 @@ class UnsupervisedLoss(Loss):
         # Compute generator loss (the discriminator prediction of fake images
         # should be 1)
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
-        g_loss_i = self.lambda_z * tf.reduce_mean((z_k - z_k_hat)*(z_k - z_k_hat))
+        z = z[:, :, 0, 0, :]
+        tf.assert_equal(z.shape, z_hat.shape)
+        g_loss_i = self.lambda_z * tf.reduce_mean((z - z_hat)*(z - z_hat))
 
         return g_loss_d, g_loss_i
 

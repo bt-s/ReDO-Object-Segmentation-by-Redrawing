@@ -18,9 +18,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import Mean
 from argparse import ArgumentParser, Namespace
 from sys import argv
-import logging
-from typing import Dict, Tuple
-
+from typing import Dict
 from datasets import BirdDataset, FlowerDataset, FaceDataset
 from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy, normalize_contrast
 from generator import Generator
@@ -63,56 +61,53 @@ def parse_train_args():
     return parser.parse_args(argv[1:])
 
 
-def discriminator_update(batch_images_real_1: tf.Tensor, batch_images_real_2: tf.Tensor, z: tf.Tensor,
-                         optimizers: Dict,
+def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z: tf.Tensor, optimizers: Dict,
                          models: Dict, metrics: Dict, adversarial_loss: UnsupervisedLoss):
     """Updates the real and fake discriminator losses
 
     Args:
-        batch_images_real_1: Image batch (of size n) of shape (n, 128, 128, 3)
-        batch_images_real_2: Image batch (of size n) of shape (n, 128, 128, 3)
+        images_real_1: Image batch (of size n) of shape (n, 128, 128, 3)
+        images_real_2: Image batch (of size n) of shape (n, 128, 128, 3)
         z: noise vector of shape (n, n_classes, 1, 1, 32)
+        optimizers: Dict of optimizers
         models: Dict of models
         metrics: Dict of metrics
         adversarial_loss: Loss
     """
 
     # Get segmentation masks
-    batch_masks_logits = models['F'](batch_images_real_1)
+    masks_1 = models['F'](images_real_1)
 
     # Get fake images from generator
-    batch_images_fake = models['G'](batch_images_real_1,
-                                    batch_masks_logits, z, update_generator=False,
-                                    training=True)
+    images_fake, _ = models['G'](images_real_1, masks_1, z, training=True)
 
     with tf.GradientTape() as tape:
+
         # Get logits for real and fake images
-        d_logits_real = models['D'](batch_images_real_2, True)
-        d_logits_fake = models['D'](batch_images_fake, True)
+        d_logits_real = models['D'](images_real_2, True)
+        d_logits_fake = models['D'](images_fake, True)
 
         # Compute discriminator loss for current batch
-        d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(
-            d_logits_real, d_logits_fake)
-
+        d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(d_logits_real, d_logits_fake)
         d_loss = -d_loss_real - d_loss_fake
 
     # Compute gradients
     d_gradients = tape.gradient(d_loss, models['D'].trainable_variables)
-    optimizers['D'].apply_gradients(zip(d_gradients,
-                                        models['D'].trainable_variables))
+
+    # Update Weights
+    optimizers['D'].apply_gradients(zip(d_gradients, models['D'].trainable_variables))
 
     # Update summary with the computed loss
     metrics['d_r_loss'](d_loss_real)
     metrics['d_f_loss'](d_loss_fake)
 
 
-def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
-                     models: Dict, metrics: Dict, optimizers: Dict,
+def generator_update(images_real: tf.Tensor, z: tf.Tensor, models: Dict, metrics: Dict, optimizers: Dict,
                      adversarial_loss: UnsupervisedLoss):
     """Updates the generator and information losses
-
     Args:
-        batch_images_real: Image batch (of size n) of shape (n, 128, 128, 3)
+        images_real: Image batch (of size n) of shape (n, 128, 128, 3)
+        z: noise vector | shape: [batch_size, n_classes, 1, 1, 32]
         models: Dict of models
         metrics: Dict of metrics
         optimizers: Dict of optimizers
@@ -122,29 +117,24 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     with tf.GradientTape() as tape:
 
         # Get segmentation masks
-        batch_masks = models['F'](batch_images_real)
+        masks = models['F'](images_real)
 
         # Get fake images from generator
-        batch_images_fake, batch_regions_fake = models['G'](
-            batch_images_real, batch_masks, z, update_generator=True,
-            training=True)
+        images_fake, regions_fake = models['G'](images_real, masks, z, training=True)
 
         # Get the recovered z-value from the information network
-        batch_z_k_hat = models['I'](batch_regions_fake, training=True)
+        z_hat = models['I'](regions_fake, training=True)
 
         # Get logits for fake images
-        d_logits_fake = models['D'](batch_images_fake, training=True)
+        d_logits_fake = models['D'](images_fake, training=True)
 
         # Compute generator loss for current batch
-        g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake,
-                                                         z[:, :, 0, 0, :], batch_z_k_hat)
-
+        g_loss_d, g_loss_i = adversarial_loss.get_g_loss(d_logits_fake, z, z_hat)
         g_loss = g_loss_d + g_loss_i
 
     # Compute gradients
     gradients = tape.gradient(g_loss, models['F'].trainable_variables +
                               models['G'].trainable_variables + models['I'].trainable_variables)
-
     f_gradients = gradients[:len(models['F'].trainable_variables)]
     g_gradients = gradients[len(models['F'].trainable_variables):-len(models['I'].trainable_variables)]
     i_gradients = gradients[-len(models['I'].trainable_variables):]
@@ -162,60 +152,88 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     metrics['g_i_loss'](g_loss_i)
 
 
-def validation_step(validation_set: tf.data.Dataset,
-                    models: Dict, metrics: Dict, iter: int, session_name: str):
+def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict, iter: int, session_name: str):
+    """
+    Perform validation step at training checkpoint.
+    :param validation_set: validation set
+    :param models: Dict of models
+    :param metrics: Dict of metrics
+    :param iter: current training iteration
+    :param session_name: session name
+    """
+
+    # Compute IoU and Accuracy for all possible permutations of channels | only for two channels
+    # TODO: Extend to Multi-class computation
+    # create separate metrics for both output channels
     perm_mean_accuracy_1 = Mean()
-    perm_mean_IoU_1 = Mean()
+    perm_mean_iou_1 = Mean()
     perm_mean_accuracy_2 = Mean()
-    perm_mean_IoU_2 = Mean()
-    for val_batch_images_real, val_batch_masks in validation_set:
+    perm_mean_iou_2 = Mean()
+
+    # Iterate over validation set
+    for images_real, masks_real in validation_set:
+
         # Get predictions
-        val_batch_mask_predictions = models['F'](val_batch_images_real)
+        masks = models['F'](images_real)
 
         for perm_id in range(2):
             if perm_id == 0:
-                perm_accuracy = compute_accuracy(val_batch_mask_predictions, val_batch_masks)
-                perm_iou = compute_IoU(val_batch_mask_predictions, val_batch_masks)
+                perm_accuracy = compute_accuracy(masks, masks_real)
+                perm_iou = compute_IoU(masks, masks_real)
                 perm_mean_accuracy_1(perm_accuracy)
-                perm_mean_IoU_1(perm_iou)
+                perm_mean_iou_1(perm_iou)
             else:
-                val_batch_mask_predictions = tf.reverse(val_batch_mask_predictions, axis=[-1])
-                perm_accuracy = compute_accuracy(val_batch_mask_predictions, val_batch_masks)
-                perm_iou = compute_IoU(val_batch_mask_predictions, val_batch_masks)
+                # reverse predicted masks
+                masks = tf.reverse(masks, axis=[-1])
+                perm_accuracy = compute_accuracy(masks, masks_real)
+                perm_iou = compute_IoU(masks, masks_real)
                 perm_mean_accuracy_2(perm_accuracy)
-                perm_mean_IoU_2(perm_iou)
+                perm_mean_iou_2(perm_iou)
 
+    # Take the better permutation and update metrics
     if perm_mean_accuracy_1.result() >= perm_mean_accuracy_2.result():
         metrics['accuracy'](perm_mean_accuracy_1.result())
-        metrics['IoU'](perm_mean_IoU_1.result())
+        metrics['IoU'](perm_mean_iou_1.result())
+        # no permutation performed, foreground ID same as in label
         foreground_id = 1
     else:
         metrics['accuracy'](perm_mean_accuracy_2.result())
-        metrics['IoU'](perm_mean_IoU_2.result())
+        metrics['IoU'](perm_mean_iou_2.result())
+        # masks reversed, foreground ID flipped
         foreground_id = 0
 
-    # save image of redrawn images
-    val_iter = validation_set.__iter__()
-    batch_images_real, batch_labels = next(val_iter)
-    batch_masks = models['F'](batch_images_real)
-    tf.random.set_seed(10)
-    z = tf.random.normal([batch_images_real.shape[0], batch_masks.shape[3], 1, 1, 32])
-    batch_images_fake, batch_regions_fake = models['G'](batch_images_real, batch_masks, z, update_generator=True,
-                                                        training=False)
-    fig, ax = plt.subplots(5, 5)
+    # Save exemplary images
+    val_iter = validation_set.__iter__()  # Create iterator
+    images_real, _ = next(val_iter)  # Get one batch
+    masks = models['F'](images_real)  # Get masks
+    tf.random.set_seed(10)  # Set seed to use same noise vector at every checkpoint
+    z = tf.random.normal([images_real.shape[0], masks.shape[3], 1, 1, 32])  # sample noise vector
+    # Get batch of fake images
+    images_fake, regions_fake = models['G'](images_real, masks, z, training=False)
+
+    # Draw results
+    n_images = 5
+    fig, ax = plt.subplots(n_images, 5)
+    for i in range(n_images):
+        # Show real image
+        ax[i, 0].imshow(normalize_contrast(images_real[i].numpy()))
+        # Show predicted foreground mask
+        ax[i, 1].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
+        # Show redrawn regions (input to information network)
+        ax[i, 2].imshow(normalize_contrast(regions_fake[i].numpy()), cmap='gray')
+        # Show fake images with redrawn foreground and background
+        if foreground_id == 0:
+            ax[i, 3].imshow(normalize_contrast(images_fake[i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(images_fake[images_real.shape[0] + i].numpy()))
+        else:
+            ax[i, 3].imshow(normalize_contrast(images_fake[images_real.shape[0] + i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(images_fake[i].numpy()))
+        # Turn off axis for all subplots
+        [ax[i, j].axis('off') for j in range(n_images)]
+
+    # Set titles
     title = 'Iteration: ' + str(iter)
     fig.suptitle(title)
-    for i in range(5):
-        ax[i, 0].imshow(normalize_contrast(batch_images_real[i].numpy()))
-        ax[i, 1].imshow(batch_masks[i, :, :, foreground_id].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
-        ax[i, 2].imshow(normalize_contrast(batch_regions_fake[i].numpy()), cmap='gray')
-        if foreground_id == 0:
-            ax[i, 3].imshow(normalize_contrast(batch_images_fake[i].numpy()))
-            ax[i, 4].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
-        else:
-            ax[i, 3].imshow(normalize_contrast(batch_images_fake[batch_images_real.shape[0] + i].numpy()))
-            ax[i, 4].imshow(normalize_contrast(batch_images_fake[i].numpy()))
-        [ax[i, j].axis('off') for j in range(5)]
     ax[0, 0].set_title('Image')
     ax[0, 1].set_title('Mask')
     ax[0, 2].set_title('Regions')
