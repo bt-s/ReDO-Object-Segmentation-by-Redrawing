@@ -199,7 +199,7 @@ def validation_step(validation_set: tf.data.Dataset,
     val_iter = validation_set.__iter__()
     batch_images_real, batch_labels = next(val_iter)
     batch_masks = models['F'](batch_images_real)
-    tf.random.set_seed(0)
+    tf.random.set_seed(10)
     z = tf.random.normal([batch_images_real.shape[0], batch_masks.shape[3], 1, 1, 32])
     batch_images_fake, batch_regions_fake = models['G'](batch_images_real, batch_masks, z, update_generator=True,
                                                         training=False)

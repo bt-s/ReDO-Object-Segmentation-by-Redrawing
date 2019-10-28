@@ -351,26 +351,13 @@ class ClassGenerator(Model):
                 ax[1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
                 ax[1].set_title('Fake')
 
-                fig1, ax1 = plt.subplots(2, 3)
-                ax1[0, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
-                ax1[0, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
-                ax1[0, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
                 batch_region_k_fake *= batch_masks_k
-                ax1[1, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
-                ax1[1, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
-                ax1[1, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
-                plt.savefig('generator.png')
-                plt.close()
-
 
                 ax[2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, :].numpy()))
                 ax[2].set_title('Fake * M')
 
                 # Add redrawn regions to batch of fake images
                 batch_images_fake += batch_region_k_fake
-
-                ax[3].imshow(normalize_contrast(batch_images_fake[0, :, :, :].numpy()))
-                ax[3].set_title('F. Image')
 
             # Re-use input image for other regions
             else:
@@ -379,6 +366,9 @@ class ClassGenerator(Model):
                 else:
                     batch_masks_inv = tf.expand_dims(batch_masks[:, :, :, k],
                             axis=3)
+
+                ax[3].imshow(normalize_contrast((batch_images_real[0, :, :, :]*batch_masks_inv[0, :, :, 0]).numpy()))
+                ax[3].set_title('R * M')
 
                 batch_images_fake += batch_images_real * batch_masks_inv
                 ax[4].imshow(batch_masks_inv[0, :, :, 0].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
