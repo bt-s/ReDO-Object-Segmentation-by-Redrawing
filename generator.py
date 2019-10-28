@@ -59,14 +59,14 @@ class ConditionalBatchNormalization(Layer):
             x: Output tensor of conditional batch normalization layer
         """
         # Pass input through Instance Normalization layer
-        x = self.norm(x)
+        x = self.norm.call(x)
 
         # Get conditional gamma and beta
-        #gamma_c = self.gamma(z_k)
-        #beta_c = self.beta(z_k)
+        gamma_c = self.gamma(z_k)
+        beta_c = self.beta(z_k)
 
         # Compute output
-        #x = gamma_c * x + beta_c
+        x = gamma_c * x + beta_c
 
         return x
 
