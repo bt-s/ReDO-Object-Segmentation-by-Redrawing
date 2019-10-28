@@ -367,7 +367,7 @@ class ClassGenerator(Model):
                     batch_masks_inv = tf.expand_dims(batch_masks[:, :, :, k],
                             axis=3)
 
-                ax[3].imshow(normalize_contrast((batch_images_real[0, :, :, :]*batch_masks_inv[0, :, :, 0]).numpy()))
+                ax[3].imshow(normalize_contrast((batch_images_real[0, :, :, :]*batch_masks_inv[0, :, :, :]).numpy()))
                 ax[3].set_title('R * M')
 
                 batch_images_fake += batch_images_real * batch_masks_inv
