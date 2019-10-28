@@ -120,6 +120,7 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     """
 
     with tf.GradientTape() as tape:
+
         # Get segmentation masks
         batch_masks = models['F'](batch_images_real)
 
@@ -159,8 +160,6 @@ def generator_update(batch_images_real: tf.Tensor, z: tf.Tensor,
     # Update summary with computed loss
     metrics['g_d_loss'](g_loss_d)
     metrics['g_i_loss'](g_loss_i)
-
-    return batch_images_fake, batch_regions_fake, batch_masks
 
 
 def validation_step(validation_set: tf.data.Dataset,
@@ -307,8 +306,7 @@ def train(args: Namespace, datasets: Dict):
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
 
         # Update generator
-        batch_images_fake, batch_regions_fake, batch_masks = \
-            generator_update(batch_images_real_1, z, models,
+        generator_update(batch_images_real_1, z, models,
                              metrics, optimizers, adversarial_loss)
 
         # Update discriminator

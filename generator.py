@@ -68,7 +68,7 @@ class ConditionalBatchNormalization(Layer):
         beta_c = self.beta(z_k)
 
         # Compute output
-        x = (1 + gamma_c) * x + beta_c
+        x = gamma_c * x + beta_c
 
         return x
 
@@ -116,8 +116,8 @@ class InputBlock(Layer):
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         # Apply CBN and relu
-        x = self.cbn(x, z_k)
-        x = self.relu(x)
+        #x = self.cbn(x, z_k)
+        #x = self.relu(x)
 
         return x
 
@@ -342,8 +342,11 @@ class ClassGenerator(Model):
 
         # Container for re-drawn image
         batch_images_fake = tf.zeros(batch_images_real.shape)
+
+        # figure for saving image
         fig, ax = plt.subplots(2, 3)
         ax = ax.flatten()
+
         for k in range(n_regions):
             # Re-draw sampled region
             if k == self.k:
@@ -452,7 +455,7 @@ class Generator(Model):
                 batch_images_fake: Batch of fake images redrawn for each class
                                    of shape: [batch_size*n_classes, 128, 128, 3]
         """
-        batch_images_fake, batch_regions_fake, batch_z_k = None, None, None
+        batch_images_fake, batch_regions_fake = None, None
 
         for k in range(self.n_classes):
 
