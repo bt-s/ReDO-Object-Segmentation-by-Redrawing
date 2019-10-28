@@ -15,7 +15,8 @@ import tensorflow as tf
 from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, UpSampling2D, AveragePooling2D, Softmax
-from tensorflow.keras.initializers import orthogonal, random_uniform_initializer
+from tensorflow.keras.initializers import orthogonal
+from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
 from normalizations import InstanceNormalization
 from network_components import SelfAttentionModule, SpectralNormalization
