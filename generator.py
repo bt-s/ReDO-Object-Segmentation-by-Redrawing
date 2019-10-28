@@ -352,13 +352,13 @@ class ClassGenerator(Model):
                 ax[1].set_title('Fake')
 
                 fig1, ax1 = plt.subplots(2, 3)
-                ax1[0, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray')
-                ax1[0, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray')
-                ax1[0, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray')
+                ax1[0, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
+                ax1[0, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
+                ax1[0, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
                 batch_region_k_fake *= batch_masks_k
-                ax1[1, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray')
-                ax1[1, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray')
-                ax1[1, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray')
+                ax1[1, 0].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 0].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
+                ax1[1, 1].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 1].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
+                ax1[1, 2].imshow(normalize_contrast(batch_region_k_fake[0, :, :, 2].numpy()), cmap='gray', vmin=0.0, vmax=1.0)
                 plt.savefig('generator.png')
                 plt.close()
 
