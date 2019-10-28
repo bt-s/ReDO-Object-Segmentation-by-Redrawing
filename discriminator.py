@@ -52,14 +52,14 @@ class Discriminator(Model):
         self.res_block_5 = ResidualBlock(init_gain=init_gain,
                 output_channels=1024, stride=(1, 1))
         self.res_block_6 = ResidualBlock(init_gain=init_gain,
-                output_channels=1024, stride=(1, 1), downsample=False)
+                output_channels=1024, stride=(1, 1), last_block=True)
 
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
 
         # Dense classification layer
         self.block_5 = Dense(units=1,
-                kernel_initializer=orthogonal(gain=init_gain))
+                             kernel_initializer=orthogonal(gain=init_gain))
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Call the Discriminator network
@@ -68,14 +68,24 @@ class Discriminator(Model):
             x: Input to the residual block
             training: Whether we are training
         """
-        x = self.block_1(x, training)
-        x = self.block_2(x, training)
-        x = self.res_block_2(x, training)
-        x = self.res_block_3(x, training)
-        x = self.res_block_4(x, training)
-        x = self.res_block_5(x, training)
-        x = self.res_block_6(x, training)
+
+        # First Block | Residual Down-sampling | Output: [batch_size, 64, 64, 64]
+        x = self.block_1.call(x, training)
+
+        # Second Block | Self-Attention | Output: [batch_size, 64, 64, 64]
+        x = self.block_2.call(x, training)
+
+        # Third Block | Residual Down-sampling | Output: [batch_size, 4, 4, 1024]
+        x = self.res_block_2.call(x, training)
+        x = self.res_block_3.call(x, training)
+        x = self.res_block_4.call(x, training)
+        x = self.res_block_5.call(x, training)
+        x = self.res_block_6.call(x, training)
+
+        # Fourth Block | Spatial Sum Pooling | Output: [batch_size, 1, 1, 1024]
         x = self.block_4(x) * x.shape[1] * x.shape[2]
+
+        # Fifth Block | Dense Output Layer | Output: [batch_size, 1]
         x = self.block_5(x)
 
         return x
