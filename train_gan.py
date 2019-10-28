@@ -220,7 +220,7 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
         # Show predicted foreground mask
         ax[i, 1].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
         # Show redrawn regions (input to information network)
-        ax[i, 2].imshow(normalize_contrast(regions_fake[i].numpy()), cmap='gray')
+        ax[i, 2].imshow(normalize_contrast(regions_fake[i].numpy()))
         # Show fake images with redrawn foreground and background
         if foreground_id == 0:
             ax[i, 3].imshow(normalize_contrast(images_fake[i].numpy()))

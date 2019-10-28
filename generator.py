@@ -159,8 +159,7 @@ class ResidualUpsamplingBlock(Layer):
         self.cbn_1 = ConditionalBatchNormalization(filters=self.input_channels, init_gain=init_gain)
         self.relu = ReLU()
         self.conv_1 = SpectralNormalization(Conv2D(filters=self.output_channels, kernel_size=(3, 3), padding='same',
-                                                   kernel_initializer=orthogonal(gain=init_gain),
-                                                   bias_initializer=random_uniform_initializer(-self.k_2, self.k_2)))
+                                                   kernel_initializer=orthogonal(gain=init_gain), use_bias=False))
         self.cbn_2 = ConditionalBatchNormalization(filters=self.output_channels, init_gain=init_gain)
         self.conv_2 = SpectralNormalization(Conv2D(filters=self.output_channels, kernel_size=(3, 3), padding='same',
                                                    kernel_initializer=orthogonal(gain=init_gain),
@@ -181,6 +180,8 @@ class ResidualUpsamplingBlock(Layer):
         # CBN and ReLU
         h = self.cbn_1.call(x, z_k)
         h = self.relu(h)
+        ns = tf.math.count_nonzero(h) / tf.size(h)
+        print(ns.numpy())
 
         # Down-sample and concatenate mask
         masks = self.mask_pool(masks_k)
@@ -193,6 +194,9 @@ class ResidualUpsamplingBlock(Layer):
         # CBN, ReLU, Conv2D
         h = self.cbn_2.call(h, z_k)
         h = self.relu(h)
+        ns = tf.math.count_nonzero(h) / tf.size(h)
+        print(ns.numpy())
+
         h = self.conv_2.call(h, training)
 
         # Process identity
@@ -228,11 +232,10 @@ class OutputBlock(Layer):
         # bias initialization constants (see PyTorch Conv2d documentation)
         self.k = tf.math.sqrt(1 / (self.output_channels * 3 * 3))
 
-        self.cbn = ConditionalBatchNormalization(filters=self.output_channels,init_gain=init_gain)
+        self.cbn = ConditionalBatchNormalization(filters=self.output_channels, init_gain=init_gain)
         self.relu = ReLU()
         self.conv = SpectralNormalization(Conv2D(filters=3, kernel_size=(3, 3), padding='same',
-                                                 kernel_initializer=orthogonal(gain=init_gain),
-                                                 bias_initializer=random_uniform_initializer(-self.k, self.k)))
+                                                 kernel_initializer=orthogonal(gain=init_gain)))
 
     def call(self, x: tf.Tensor, z_k: tf.Tensor, masks_k: tf.Tensor, training: bool) -> tf.Tensor:
         """To call the residual upsampling block
@@ -254,7 +257,8 @@ class OutputBlock(Layer):
 
         # Perform convolution
         x = self.conv.call(x, training)
-
+        print('Min: ', tf.reduce_min(x))
+        print('Min: ', tf.reduce_max(x))
         # Tanh activation
         x = tf.keras.activations.tanh(x)
 
@@ -321,8 +325,11 @@ class ClassGenerator(Model):
 
         # Second block | Residual Upsampling | Output: [batch_size, 64, 64, 2*base_channels]
         x = self.up_res_block_1.call(x, z_k, masks_k, training=training)
+
         x = self.up_res_block_2.call(x, z_k, masks_k, training=training)
+
         x = self.up_res_block_3.call(x, z_k, masks_k, training=training)
+
         x = self.up_res_block_4.call(x, z_k, masks_k, training=training)
 
         # Third block | Self Attention | Output: [batch_size, 64, 64, 2*base_channels]
@@ -354,8 +361,7 @@ class ClassGenerator(Model):
             batch_region_k_fake: Generated fake regions
         """
 
-        # Container for redrawn image
-        images_k_fake = tf.zeros(images_real.shape)
+        images_k_fake = None
 
         # Get masks for region of this class generator
         masks_k = tf.expand_dims(masks[:, :, :, self.k], axis=3)
@@ -369,7 +375,10 @@ class ClassGenerator(Model):
                 regions_k_fake = self.draw_region(z_k, masks_k, training)
 
                 # Add redrawn region to fake images
-                images_k_fake += regions_k_fake
+                if images_k_fake is None:
+                    images_k_fake = regions_k_fake
+                else:
+                    images_k_fake += regions_k_fake
 
             # Reuse input image for other regions
             else:
@@ -380,7 +389,10 @@ class ClassGenerator(Model):
                     masks_r = tf.expand_dims(masks[:, :, :, r], axis=3)
 
                 # add masked region of real image to fake image
-                images_k_fake += (images_real * masks_r)
+                if images_k_fake is None:
+                    images_k_fake = (images_real * masks_r)
+                else:
+                    images_k_fake += (images_real * masks_r)
 
         return images_k_fake, regions_k_fake
 
