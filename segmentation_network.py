@@ -234,8 +234,10 @@ class SegmentationNetwork(Model):
         """
         super(SegmentationNetwork, self).__init__()
 
+        # Set network name
         self.model_name = 'Segmentation_Network'
 
+        # Set number of classes/regions
         self.n_classes = n_classes
 
         # First computational block (3 convolutional layers)
@@ -297,11 +299,20 @@ class SegmentationNetwork(Model):
         Args:
             x: Input to the segmentation block
         """
+
+        # First Block | Convolution | Output: [batch_size, 64, 64, 32]
         x = self.block_1(x)
+
+        # Second Block | Residual Blocks | Output: [batch_size, 32, 32, 64]
         x = self.block_2(x)
-        x = self.block_3(x)
+
+        # Third Block | Pyramid Pooling Module | Output: [batch_size, 64, 64, 68]
+        x = self.block_3.call(x)
+
+        # Fourth Block | Upsample + Convolution | Output: [batch_size, 128, 128, n_classes (1 if n_classes == 2)]
         x = self.block_4(x)
 
+        # Output
         if self.n_classes == 2:
             x = tf.math.sigmoid(x)
             x = tf.concat((x, 1.0-x), axis=3)
