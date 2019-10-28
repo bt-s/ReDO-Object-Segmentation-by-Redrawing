@@ -61,7 +61,7 @@ class ConditionalBatchNormalization(Layer):
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
-        print('Gamma: ', gamma_c.shape)
+        print('Gamma: ', tf.reduce_mean(gamma_c))
         # Compute output
         x = gamma_c * x + beta_c
 
@@ -325,7 +325,7 @@ class ClassGenerator(Model):
 
         # Container for re-drawn image
         batch_images_fake = tf.zeros(batch_images_real.shape)
-        fig, ax = plt.subplots(3, 3)
+        fig, ax = plt.subplots(2, 3)
         ax = ax.flatten()
         for k in range(n_regions):
             # Re-draw sampled region
@@ -343,9 +343,6 @@ class ClassGenerator(Model):
                 x = self.block_4(x, z_k, batch_masks_k, training=training)
                 batch_region_k_fake = self.block_5(x, z_k, batch_masks_k,
                         training=training)
-                print(batch_region_k_fake.shape)
-                print(batch_masks_k.shape)
-
 
                 ax[0].imshow(batch_masks_k[0, :, :, 0].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
                 mask_title = 'Mask ' + str(self.k)
