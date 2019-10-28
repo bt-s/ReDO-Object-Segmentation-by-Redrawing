@@ -325,7 +325,8 @@ class ClassGenerator(Model):
 
         # Container for re-drawn image
         batch_images_fake = tf.zeros(batch_images_real.shape)
-
+        fig, ax = plt.subplots(3, 3)
+        ax = ax.flatten()
         for k in range(n_regions):
             # Re-draw sampled region
             if k == self.k:
@@ -345,8 +346,7 @@ class ClassGenerator(Model):
                 print(batch_region_k_fake.shape)
                 print(batch_masks_k.shape)
 
-                fig, ax = plt.subplots(3, 3)
-                ax = ax.flatten()
+
                 ax[0].imshow(batch_masks_k[0, :, :, 0].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
                 mask_title = 'Mask ' + str(self.k)
                 ax[0].set_title(mask_title)
