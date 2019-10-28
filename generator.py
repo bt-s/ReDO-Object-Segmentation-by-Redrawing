@@ -67,8 +67,6 @@ class ConditionalBatchNormalization(Layer):
 
         x = (x - mean) / std
 
-        print(tf.math.reduce_mean(x[0], axis=(0, 1)))
-        print(tf.math.reduce_std(x[0], axis=(0, 1)))
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)

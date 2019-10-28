@@ -103,7 +103,6 @@ class SpectralNormalization(Layer):
 
         # Compute spectral norm and singular value approximation
         spectral_norm, u = self.power_iteration(W_res)
-        print(spectral_norm)
 
         # Normalize kernel weights
         W_sn = W_orig / spectral_norm
