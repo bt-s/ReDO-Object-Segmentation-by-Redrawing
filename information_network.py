@@ -71,16 +71,25 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
-        # Perform forward pass
-        x = self.block_1(x, training)
-        x = self.block_2(x, training)
-        x = self.res_block_2(x, training)
-        x = self.res_block_3(x, training)
-        x = self.res_block_4(x, training)
-        x = self.res_block_5(x, training)
-        x = self.res_block_6(x, training)
+
+        # First Block | Residual Down-sampling | Output: [batch_size, 64, 64, 64]
+        x = self.block_1.call(x, training)
+
+        # Second Block | Self-Attention | Output: [batch_size, 64, 64, 64]
+        x = self.block_2.call(x, training)
+
+        # Third Block | Residual Down-sampling | Output: [batch_size, 4, 4, 1024]
+        x = self.res_block_2.call(x, training)
+        x = self.res_block_3.call(x, training)
+        x = self.res_block_4.call(x, training)
+        x = self.res_block_5.call(x, training)
+        x = self.res_block_6.call(x, training)
+
+        # Fourth Block | Spatial Sum Pooling | Output: [batch_size, 1, 1, 1024]
         x = self.block_4(x) * x.shape[1] * x.shape[2]
-        x = self.final_layer(x)
+
+        # Fifth Block | Dense Output Layer | Output: [batch_size, n_classes, n_output]
+        x = self.block_5(x)
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
 
         return x
