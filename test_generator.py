@@ -26,13 +26,13 @@ from train_utils import UnsupervisedLoss
 if __name__ == '__main__':
     # Create generator object
     generator = Generator(n_classes=2, n_input=32, base_channels=32,
-            init_gain=1.0)
+            init_gain=0.8)
 
     # Discriminator network
-    discriminator = Discriminator(init_gain=1.0)
+    discriminator = Discriminator(init_gain=0.8)
 
     # Information network
-    information_network = InformationConservationNetwork(init_gain=1.0,
+    information_network = InformationConservationNetwork(init_gain=0.8,
             n_classes=2, n_output=32)
 
     # Create optimizer object
@@ -47,8 +47,7 @@ if __name__ == '__main__':
     image_real = tf.image.decode_jpeg(tf.io.read_file(input_path_1))
     image_real = tf.image.resize(image_real, (128, 128),
             preserve_aspect_ratio=False)
-    image_real = tf.expand_dims(tf.image.per_image_standardization(image_real),
-            0)
+    image_real = tf.expand_dims(image_real / 255.0 * 2 - 1, 0)
     mask = tf.image.decode_jpeg(tf.io.read_file(label_path_1), channels=1)
     mask = tf.expand_dims(tf.image.resize(mask, (128, 128),
         preserve_aspect_ratio=False), 0)
@@ -61,10 +60,10 @@ if __name__ == '__main__':
 
     with tf.GradientTape() as tape:
         z = tf.random.normal([1, 2, 1, 1, 32])
-        batch_image_fake, batch_regions_fake = generator(image_real, masks, z,
-                update_generator=True, training=True)
-        d_logits_fake = discriminator(batch_image_fake, training=True)
-        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z, z)
+        batch_image_fake, batch_regions_fake = generator.call(image_real, masks, z, training=True)
+        d_logits_fake = discriminator.call(batch_image_fake, training=True)
+        z_hat = information_network.call(batch_regions_fake, training=True)
+        g_loss_d, g_loss_i = loss.get_g_loss(d_logits_fake, z, z_hat)
         g_loss = g_loss_d + g_loss_i
         print('Generator loss (discriminator): ', g_loss_d)
         print('Generator loss (information): ', g_loss_i)

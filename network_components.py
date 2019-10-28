@@ -10,7 +10,6 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 
 import tensorflow as tf
-from tensorflow.initializers import RandomNormal
 from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, AveragePooling2D, MaxPool2D
 from tensorflow.keras.initializers import orthogonal
@@ -42,7 +41,7 @@ class SpectralNormalization(Layer):
         # Initialize u (approximated singular vector)
         # Non-trainable variable will be updated every iteration
         self.u = super().add_weight(name='u', shape=[self.layer.filters, 1],
-            initializer=RandomNormal, trainable=False)
+            initializer=tf.random_normal_initializer, trainable=False)
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform forward pass of Conv2D layer on first iteration to initialize
@@ -213,7 +212,7 @@ class SelfAttentionModule(Layer):
         h, w, c = x.shape.as_list()[1:]
 
         # Compute and reshape features
-        fx = tf.reshape(self.f(x, training), [-1, h * w, self.key_size])
+        fx = tf.reshape(self.f.call(x, training), [-1, h * w, self.key_size])
         gx = self.g.call(x, training)
 
         # Down-sample features to reduce memory print
