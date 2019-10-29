@@ -1,3 +1,19 @@
+#!/usr/bin/python3
+
+"""test_instance_norm.py - Script to test whether our TensorFlow 2.0
+                           implementation of instance normalization is
+                           correct. The test executes a single forward pass
+                           and compares the outputs against the PyTorch
+                           implementation (see: https://pytorch.org/docs/stable/
+                           _modules/torch/nn/InstanceNorm2D.html).
+
+For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
+course at KTH Royal Institute of Technology.
+"""
+
+__author__ = "Adrian Chiemelewski-Anders, Mats Steinweg & Bas Straathof"
+
+
 import tensorflow as tf
 from normalizations import InstanceNormalization
 from tensorflow.keras.layers import LayerNormalization
@@ -25,3 +41,4 @@ out2 = la_norm(inp_tf)
 
 print(out_tf)
 print(out_torch)
+
