@@ -12,7 +12,7 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 import matplotlib.pyplot as plt
 import numpy as np
-
+import tensorflow as tf
 from datasets import BirdDataset, FlowerDataset, FaceDataset
 
 
@@ -36,6 +36,18 @@ if __name__ == '__main__':
     flowers_validation = Flowers.get_split(split='validation')
     flowers_test = Flowers.get_split(split='test')
 
+    for idx, (batch_images, batch_labels) in enumerate(flowers_training):
+        for image, label in zip(batch_images, batch_labels):
+            print(tf.reduce_max(image).numpy())
+            print(tf.reduce_min(image).numpy())
+            fig, ax = plt.subplots(1, 2)
+            image = image.numpy()
+            image -= np.min(image)
+            image /= (np.max(image) - np.min(image))
+            ax[0].imshow(image)
+            ax[1].imshow(label.numpy()[:, :, 1], cmap='gray')
+            plt.show()
+
     # Faces
     exit(0)
     # Not supported at the moment
@@ -49,12 +61,4 @@ if __name__ == '__main__':
                                        shuffle=True)
     faces_test = Faces.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in enumerate(flowers_training):
-        for image, label in zip(batch_images, batch_labels):
-            fig, ax = plt.subplots(1, 2)
-            image = image.numpy()
-            image -= np.min(image)
-            image /= (np.max(image) - np.min(image))
-            ax[0].imshow(image)
-            ax[1].imshow(label.numpy()[:, :, 1], cmap='gray')
-            plt.show()
+

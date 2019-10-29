@@ -12,11 +12,13 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
-from tensorflow.keras.layers import Layer, Conv2D, LayerNormalization, ReLU, \
-        UpSampling2D, Softmax, AveragePooling2D, ReLU
+from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
+        UpSampling2D, Softmax, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
+
+from network_components import InstanceNormalization
 
 
 class ConvolutionalBlock(Model):
@@ -24,7 +26,7 @@ class ConvolutionalBlock(Model):
     an Instance Normalization layer and ReLU activation."""
     def __init__(self, filters: int, kernel_size: Tuple[int, int], padding: str,
             stride: Union[int, Tuple[int, int]], init_gain: float,
-            weight_decay: float):
+            use_bias: bool, weight_decay: float):
         """Class constructor
 
         Attributes:
@@ -38,13 +40,12 @@ class ConvolutionalBlock(Model):
         super(ConvolutionalBlock, self).__init__()
 
         self.conv_block = Sequential()
-        self.conv_block.add(LayerNormalization(axis=(1, 2),
-            center=True, scale=True))
-        self.conv_block.add(ReLU())
         self.conv_block.add(Conv2D(filters=filters, kernel_size=kernel_size,
-            padding=padding, strides=stride, use_bias=False,
+            padding=padding, strides=stride, use_bias=use_bias,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
+        self.conv_block.add(InstanceNormalization())
+        self.conv_block.add(ReLU())
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
@@ -75,6 +76,9 @@ class PPM(Model):
         if not len(input_shape) == 3:
             raise ValueError("Input parameter <input_dim> must be of shape "
                     "(W, H, C).")
+
+        # ReLU
+        self.relu = ReLU()
 
         # Scale 1 (1x1 Output)
         pool_size_1 = (input_shape[0] // 1, input_shape[1] // 1)
@@ -117,7 +121,7 @@ class PPM(Model):
 
         # Final up-sampling
         self.upsample_final = UpSampling2D(size=(2, 2),
-                interpolation='bilinear')
+                interpolation='nearest')
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
@@ -129,25 +133,21 @@ class PPM(Model):
         # Scale 1
         x_1 = self.avg_pool_1(x)
         x_1 = self.conv_1(x_1)
-        x_1 = ReLU()(x_1)
         x_1 = self.upsample_1(x_1)
 
         # Scale 2
         x_2 = self.avg_pool_2(x)
         x_2 = self.conv_2(x_2)
-        x_2 = ReLU()(x_2)
         x_2 = self.upsample_2(x_2)
 
         # Scale 3
         x_3 = self.avg_pool_3(x)
         x_3 = self.conv_3(x_3)
-        x_3 = ReLU()(x_3)
         x_3 = self.upsample_3(x_3)
 
         # Scale 4
         x_4 = self.avg_pool_4(x)
         x_4 = self.conv_4(x_4)
-        x_4 = ReLU()(x_4)
         x_4 = self.upsample_4(x_4)
 
         # Concatenate feature maps
@@ -176,13 +176,13 @@ class ResidualBlock(Model):
                 padding='same', use_bias=False,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = LayerNormalization(axis=(1, 2), center=True, scale=True)
+        self.in_1 = InstanceNormalization()
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_2 = LayerNormalization(axis=(1, 2), center=True, scale=True)
+        self.in_2 = InstanceNormalization()
 
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
@@ -191,18 +191,15 @@ class ResidualBlock(Model):
         Args:
             x: Input to the Residual block
         """
-        # Store input for skip-connection
-        identity = x
 
         # Residual pipeline
-
-        x = self.conv_1(x)
-        x = self.in_1(x)
-        x = self.relu(x)
-        x = self.conv_2(x)
+        h = self.conv_1(x)
+        h = self.in_1(h)
+        h = self.relu(h)
+        h = self.conv_2(h)
 
         # Skip-connection
-        x += identity
+        x += h
 
         # Apply ReLU activation
         x = self.in_2(x)
@@ -242,20 +239,22 @@ class SegmentationNetwork(Model):
         """
         super(SegmentationNetwork, self).__init__()
 
+        # Set network name
         self.model_name = 'Segmentation_Network'
 
+        # Set number of classes/regions
         self.n_classes = n_classes
 
         # First computational block (3 convolutional layers)
         self.ref_padding_1 = ReflectionPadding2D(padding=(3, 3))
         self.conv_block_1 = ConvolutionalBlock(filters=16, kernel_size=(7, 7),
-                padding='valid', stride=1, init_gain=init_gain,
+                padding='valid', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.conv_block_2 = ConvolutionalBlock(filters=32, kernel_size=(3, 3),
-                padding='same', stride=2, init_gain=init_gain,
+                padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.conv_block_3 = ConvolutionalBlock(filters=64, kernel_size=(3, 3),
-                padding='same', stride=2, init_gain=init_gain,
+                padding='same', stride=2, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.block_1 = Sequential((self.ref_padding_1, self.conv_block_1,
             self.conv_block_2, self.conv_block_3))
@@ -277,11 +276,11 @@ class SegmentationNetwork(Model):
         # Fourth computational block (1 convolutional layer, 1 up-sampling
         # layer, 2 convolutional layers)
         self.conv_block_4 = ConvolutionalBlock(filters=34, kernel_size=(3, 3),
-                padding='same', stride=1, init_gain=init_gain,
+                padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
-        self.upsample = UpSampling2D(size=(2, 2), interpolation='bilinear')
+        self.upsample = UpSampling2D(size=(2, 2), interpolation='nearest')
         self.conv_block_5 = ConvolutionalBlock(filters=17, kernel_size=(3, 3),
-                padding='same', stride=1, init_gain=init_gain,
+                padding='same', stride=1, init_gain=init_gain, use_bias=False,
                 weight_decay=weight_decay)
         self.ref_padding_2 = ReflectionPadding2D(padding=(3, 3))
 
@@ -306,14 +305,24 @@ class SegmentationNetwork(Model):
         Args:
             x: Input to the segmentation block
         """
+
+        # First Block | Convolution | Output: [batch_size, 64, 64, 32]
         x = self.block_1(x)
+
+        # Second Block | Residual Blocks | Output: [batch_size, 32, 32, 64]
         x = self.block_2(x)
-        x = self.block_3(x)
+
+        # Third Block | Pyramid Pooling Module | Output: [batch_size, 64, 64, 68]
+        x = self.block_3.call(x)
+
+        # Fourth Block | Upsample + Convolution | Output: [batch_size, 128, 128,
+        # n_classes (1 if n_classes == 2)]
         x = self.block_4(x)
 
+        # Output
         if self.n_classes == 2:
             x = tf.math.sigmoid(x)
-            x = tf.concat((x, 1-x), axis=3)
+            x = tf.concat((x, 1.0-x), axis=3)
         else:
             x = Softmax(axis=3)(x)
 

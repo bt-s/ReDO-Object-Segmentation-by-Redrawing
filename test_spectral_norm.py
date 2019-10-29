@@ -66,7 +66,7 @@ def torch_fwd(inp: torch.Tensor , label: torch.Tensor,
         conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
                 padding=1, bias=False)
         conv_layer.weight.data = W_t
-        model = torchmul.nn.Sequential(OrderedDict([
+        model = torch.nn.Sequential(OrderedDict([
             ('conv', conv_layer),
             ('avg', torch.nn.AvgPool2d(3))]))
 
@@ -100,7 +100,7 @@ def tf_fwd(inp: tf.Tensor, label: tf.Tensor,
     if spectral_normalization:
         conv = network_components.SpectralNormalization(
                 tf.keras.layers.Conv2D(1, kernel_size=(3, 3), strides=(1, 1),
-                weights=[W_tf], trainable=False, padding='same',
+                weights=[W_tf], trainable=True, padding='same',
                 input_shape=(3, 3, 1), use_bias=False))
         pool = tf.keras.layers.AveragePooling2D(pool_size=3)
     else:
