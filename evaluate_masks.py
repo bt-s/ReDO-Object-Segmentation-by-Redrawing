@@ -30,7 +30,7 @@ if __name__ == '__main__':
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=0.0, weight_decay=1e-4)
 
-    iteration = 2500
+    iteration = 300
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         batch_predictions = model(batch_images)
         # Compute loss for current batch
         batch_loss = loss(batch_predictions, batch_labels)
-
+        batch_predictions = tf.reverse(batch_predictions, axis=[-1])
         # Update respective metric with computed loss
         metrics['test_loss'](batch_loss)
         batch_accuracy = compute_accuracy(batch_predictions, batch_labels)

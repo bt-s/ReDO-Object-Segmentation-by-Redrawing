@@ -19,46 +19,48 @@ from tensorflow.keras.losses import Loss, BinaryCrossentropy, \
     CategoricalCrossentropy
 from tensorflow.keras.metrics import Mean
 from typing import Dict, Tuple
+import numpy as np
 
 
 class UnsupervisedLoss(Loss):
     """Unsupervised loss for generator/discriminator/information/mask networks"""
     def __init__(self, lambda_z: float):
         """Class constructor
-
         Attributes:
             lambda_z: Multiplicative factor for information conservation loss
         """
         super(UnsupervisedLoss, self).__init__()
         self.lambda_z = lambda_z
 
-
-    def get_g_loss(self, d_logits_fake: tf.Tensor, z_k: tf.Tensor,
-            z_k_hat: tf.Tensor) -> Tuple[float, float]:
+    def get_g_loss(self, d_logits_fake: tf.Tensor, z: tf.Tensor,
+                   z_hat: tf.Tensor) -> Tuple[float, float]:
         """Compute the generator loss
-
         Args:
             d_logits_fake: Probabilities of the fake images, based on the
                            discriminator (batch_size*number of classes, 1)
-            z_k: Recovered sampled noise vector (batch_size*number of classes,
+            z: Recovered sampled noise vector (batch_size*number of classes,
                            size of noise vector)
-            z_k_hat: Output of the information network (batch_size*number of
+            z_hat: Output of the information network (batch_size*number of
                      classes, size of noise vector)
-
         Returns:
             g_loss_d: Generator loss (discriminator)
             g_loss_i: Generator loss (information)
         """
+
+        # Ensure same shape of noise vector and estimate
+        z = z[:, :, 0, 0, :]
+        tf.assert_equal(z.shape, z_hat.shape)
+
         # Compute generator loss (the discriminator prediction of fake images
         # should be 1)
         g_loss_d = -1 * tf.reduce_mean(d_logits_fake)
-        g_loss_i = self.lambda_z * tf.reduce_mean((z_k - z_k_hat)*(z_k - z_k_hat))
+        g_loss_i = self.lambda_z * tf.reduce_mean((z - z_hat)*(z - z_hat))
 
         return g_loss_d, g_loss_i
 
     @staticmethod
-    def get_d_loss(d_logits_real: tf.Tensor,
-                   d_logits_fake: tf.Tensor) -> Tuple[float, float]:
+    def get_d_loss(d_logits_real: tf.Tensor, d_logits_fake: tf.Tensor)\
+            -> Tuple[float, float]:
         """Compute the discriminator loss
 
         Args:
@@ -71,13 +73,14 @@ class UnsupervisedLoss(Loss):
             d_loss_r: Discriminator loss (real)
             d_loss_f: Discriminator loss (fake)
         """
+
         # Compute both parts of discriminator loss | the prediction of fake
         # images should be 0, prediction of real images should be 1
         zeros_f = tf.fill(d_logits_fake.shape, 0.0)
         zeros_r = tf.fill(d_logits_real.shape, 0.0)
 
-        d_loss_r = tf.reduce_mean(tf.math.maximum(zeros_r, 1 - d_logits_real))
-        d_loss_f = tf.reduce_mean(tf.math.maximum(zeros_f, 1 + d_logits_fake))
+        d_loss_r = tf.reduce_mean(tf.math.minimum(zeros_r, -1 + d_logits_real))
+        d_loss_f = tf.reduce_mean(tf.math.minimum(zeros_f, -1 - d_logits_fake))
 
         return d_loss_r, d_loss_f
 
@@ -111,20 +114,6 @@ class SupervisedLoss(Loss):
         # Report mean of loss
         loss = tf.reduce_mean(loss, axis=(0, 1, 2))
         return loss
-
-
-# TODO: add type hinting for input argument iterator
-def get_batch(update_generator: bool, iterator):
-
-    if update_generator:
-        batch_images_real, _ = next(iterator)
-
-        return batch_images_real
-    else:
-        batch_images_real_1, _ = next(iterator)
-        batch_images_real_2, _ = next(iterator)
-
-        return batch_images_real_1, batch_images_real_2
 
 
 def log_epoch(metrics: Dict[str, Mean],
@@ -433,3 +422,9 @@ def log_training(metrics: Dict[str, Mean],
                                metrics['d_r_loss'].result(),
                                metrics['accuracy'].result(),
                                metrics['IoU'].result()))
+
+
+def normalize_contrast(image):
+    image -= np.min(image)
+    image /= (np.max(image) - np.min(image))
+    return image

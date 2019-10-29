@@ -15,8 +15,7 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.layers import Dense, BatchNormalization, ReLU, Conv2D, \
         MaxPool2D, Softmax, GlobalAveragePooling2D
-
-from discriminator import ResidualBlock, SelfAttentionModule
+from network_components import ResidualBlock, SelfAttentionModule
 
 
 class InformationConservationNetwork(Model):
@@ -37,10 +36,10 @@ class InformationConservationNetwork(Model):
 
         # ReLU
         self.relu = ReLU()
-        
+
         # Input residual down-sampling block
         self.block_1 = ResidualBlock(init_gain=init_gain, output_channels=64,
-                stride=(2, 2))
+                stride=(1, 1), first_block=True)
 
         # Self-attention module
         self.block_2 = SelfAttentionModule(init_gain=init_gain,
@@ -48,21 +47,21 @@ class InformationConservationNetwork(Model):
 
         # Sequence of residual down-sampling blocks
         self.res_block_2 = ResidualBlock(init_gain=init_gain,
-                output_channels=64, stride=(2, 2))
+                output_channels=128, stride=(1, 1))
         self.res_block_3 = ResidualBlock(init_gain=init_gain,
-                output_channels=128, stride=(2, 2))
+                output_channels=256, stride=(1, 1))
         self.res_block_4 = ResidualBlock(init_gain=init_gain,
-                output_channels=256, stride=(2, 2))
+                output_channels=512, stride=(1, 1))
         self.res_block_5 = ResidualBlock(init_gain=init_gain,
-                output_channels=512, stride=(2, 2))
-        self.res_block_6 = ResidualBlock(init_gain=init_gain,
                 output_channels=1024, stride=(1, 1))
+        self.res_block_6 = ResidualBlock(init_gain=init_gain,
+                output_channels=1024, stride=(1, 1), last_block=True)
 
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
 
         # Dense classification layers
-        self.final_layer = Dense(units=n_output*self.n_classes,
+        self.block_5 = Dense(units=n_output*self.n_classes,
                 kernel_initializer=orthogonal(gain=init_gain))
 
     def call(self, x: tf.Tensor, training: bool):
@@ -72,20 +71,25 @@ class InformationConservationNetwork(Model):
             x: Input batch of shape (n, 128, 128, 3)
             training: Whether we are in the training phase
         """
-        # Perform forward pass
-        x = self.block_1(x, training)
-        x = self.block_2(x, training)
-        x = self.res_block_2(x, training)
-        x = self.res_block_3(x, training)
-        x = self.res_block_4(x, training)
-        x = self.res_block_5(x, training)
-        x = self.res_block_6(x, training)
-        x = self.relu(x)
+
+        # First Block | Residual Down-sampling | Output: [batch_size, 64, 64, 64]
+        x = self.block_1.call(x, training)
+
+        # Second Block | Self-Attention | Output: [batch_size, 64, 64, 64]
+        x = self.block_2.call(x, training)
+
+        # Third Block | Residual Down-sampling | Output: [batch_size, 4, 4, 1024]
+        x = self.res_block_2.call(x, training)
+        x = self.res_block_3.call(x, training)
+        x = self.res_block_4.call(x, training)
+        x = self.res_block_5.call(x, training)
+        x = self.res_block_6.call(x, training)
+
+        # Fourth Block | Spatial Sum Pooling | Output: [batch_size, 1, 1, 1024]
         x = self.block_4(x) * x.shape[1] * x.shape[2]
-        x = self.final_layer(x)
+
+        # Fifth Block | Dense Output Layer | Output: [batch_size, n_classes, n_output]
+        x = self.block_5(x)
         x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
-        x = tf.transpose(x, [1, 0, 2])
-        x = tf.reshape(x, [x.shape[1]*self.n_classes, -1])
 
         return x
-
