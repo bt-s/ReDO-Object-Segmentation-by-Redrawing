@@ -323,11 +323,24 @@ class ResidualBlock(Layer):
 
 class InstanceNormalization(Layer):
     def __init__(self, affine=False):
+        """Class constructor
+
+        Attributs:
+            affine: Whether the function is affine
+        """
         super(InstanceNormalization, self).__init__()
         self.affine = affine
 
 
-    def call(self, x):
+    def call(self, x: tf.Tensor) -> tf.Tensor:
+        """Perform instance normalization
+
+        Args:
+            x: Input tensor
+
+        Returns:
+            x: Instance normalized tensor
+        """
         mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
         mean = tf.expand_dims(mean, axis=2)
         std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
