@@ -330,7 +330,14 @@ class InstanceNormalization(Layer):
         """
         super(InstanceNormalization, self).__init__()
         self.affine = affine
+        self.eps = 1e-5
 
+    def build(self, input_shape):
+        if self.affine:
+            self.gamma = self.add_weight(name='gamma', shape=[1, input_shape[-1]],
+                                        initializer=tf.ones_initializer, trainable=True)
+            self.beta = self.add_weight(name='beta', shape=[1, input_shape[-1]],
+                                        initializer=tf.zeros_initializer, trainable=True)
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform instance normalization
@@ -341,11 +348,23 @@ class InstanceNormalization(Layer):
         Returns:
             x: Instance normalized tensor
         """
+
+        # Compute mean over spatial dimensions H, W
         mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
+        # Reshape mean to match shape of x
         mean = tf.expand_dims(mean, axis=2)
+
+        # Compute std over spatial dimensions H, W
         std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
+        # Reshape std to match shape of x
         std = tf.expand_dims(std, axis=2)
-        x = (x - mean) / std
+
+        # Normalize x
+        x = (x - mean) / (std + self.eps)
+
+        # Scale and shift x if affine is true
+        if self.affine:
+            x = x * self.gamma + self.beta
 
         return x
 
