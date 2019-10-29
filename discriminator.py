@@ -15,6 +15,7 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, \
         Conv2D, MaxPool2D, Softmax, GlobalAveragePooling2D, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
+
 from network_components import SelfAttentionModule, ResidualBlock
 
 
@@ -23,7 +24,7 @@ class Discriminator(Model):
     def __init__(self, init_gain: float):
         """Class constructor
 
-        ArgS:
+        Args:
             init_gain: Initializer gain for orthogonal initialization
         """
         super(Discriminator, self).__init__()
@@ -60,6 +61,7 @@ class Discriminator(Model):
         # Dense classification layer
         self.block_5 = Dense(units=1,
                              kernel_initializer=orthogonal(gain=init_gain))
+
 
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Call the Discriminator network
