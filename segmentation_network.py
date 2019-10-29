@@ -17,14 +17,16 @@ from tensorflow.keras.layers import Layer, Conv2D, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
+
 from network_components import InstanceNormalization
+
 
 class ConvolutionalBlock(Model):
     """Computational block consisting of a 2D Convolutional layer followed by
     an Instance Normalization layer and ReLU activation."""
     def __init__(self, filters: int, kernel_size: Tuple[int, int], padding: str,
-            stride: Union[int, Tuple[int, int]], init_gain: float, use_bias: bool,
-            weight_decay: float):
+            stride: Union[int, Tuple[int, int]], init_gain: float,
+            use_bias: bool, weight_decay: float):
         """Class constructor
 
         Attributes:
@@ -44,6 +46,7 @@ class ConvolutionalBlock(Model):
             kernel_regularizer=L1L2(l2=weight_decay)))
         self.conv_block.add(InstanceNormalization())
         self.conv_block.add(ReLU())
+
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of convolutional block
@@ -120,6 +123,7 @@ class PPM(Model):
         self.upsample_final = UpSampling2D(size=(2, 2),
                 interpolation='nearest')
 
+
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of PPM block
 
@@ -180,6 +184,7 @@ class ResidualBlock(Model):
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.in_2 = InstanceNormalization()
 
+
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
 
@@ -208,6 +213,7 @@ class ReflectionPadding2D(Layer):
     def __init__(self, padding: Tuple[int, int]=(3, 3)):
         self.padding = padding
         super(ReflectionPadding2D, self).__init__()
+
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Reflection Padding block
@@ -292,6 +298,7 @@ class SegmentationNetwork(Model):
         self.block_4 = Sequential((self.conv_block_4, self.upsample,
             self.conv_block_5, self.ref_padding_2, self.conv_final))
 
+
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of the segmentation network
 
@@ -308,7 +315,8 @@ class SegmentationNetwork(Model):
         # Third Block | Pyramid Pooling Module | Output: [batch_size, 64, 64, 68]
         x = self.block_3.call(x)
 
-        # Fourth Block | Upsample + Convolution | Output: [batch_size, 128, 128, n_classes (1 if n_classes == 2)]
+        # Fourth Block | Upsample + Convolution | Output: [batch_size, 128, 128,
+        # n_classes (1 if n_classes == 2)]
         x = self.block_4(x)
 
         # Output
