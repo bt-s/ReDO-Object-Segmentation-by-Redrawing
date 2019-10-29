@@ -215,7 +215,7 @@ class Dataset:
 
 class BirdDataset(Dataset):
     """Class to support the birds dataset"""
-    def __init__(self, root: str='../../Datasets/Birds/', image_dir: str='images/',
+    def __init__(self, root: str='Datasets/Birds/', image_dir: str='images/',
                  label_dir: str='labels/', path_file: str='paths.txt',
                  split_file: str='train_val_test_split.txt'):
         """See `Dataset.__init__`"""
