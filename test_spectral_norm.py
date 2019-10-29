@@ -24,6 +24,7 @@ import torch
 import network_components
 
 USE_SPECTRAL_NORM = True
+DECIMALS = 2
 
 def configure_harness():
     tf.keras.backend.set_floatx('float64')
@@ -262,7 +263,7 @@ class TestSpectralNormSmall(unittest.TestCase):
             self.input_shape_t, self.order)
 
         self.assertEqual(out_t.shape, out_tf.shape)
-        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=5)
+        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=DECIMALS)
 
 
     def test_backward(self):
@@ -270,7 +271,7 @@ class TestSpectralNormSmall(unittest.TestCase):
         out_t, out_tf = backward_forward_outputs(self.input_shape_t, self.order,
                 self.model_t, self.model_tf)
         self.assertEqual(out_t.shape, out_tf.shape)
-        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=5)
+        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=DECIMALS)
 
 
 class TorchModelLarge(torch.nn.Module):
@@ -379,7 +380,7 @@ class TestSpectralNormLarge(unittest.TestCase):
         print('fwd---')
         print(out_tf)
         self.assertEqual(out_t.shape, out_tf.shape)
-        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=5)
+        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=DECIMALS)
 
 
     def test_backward(self):
@@ -392,7 +393,7 @@ class TestSpectralNormLarge(unittest.TestCase):
         print('bck---')
         print(out_tf)
         self.assertEqual(out_t.shape, out_tf.shape)
-        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=5)
+        np.testing.assert_array_almost_equal(out_t, out_tf, decimal=DECIMALS)
 
 if __name__ == '__main__':
     configure_harness()
