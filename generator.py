@@ -18,7 +18,7 @@ from tensorflow.keras.initializers import orthogonal
 from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
 from normalizations import InstanceNormalization
-from network_components import SelfAttentionModule, SpectralNormalization
+from network_components import SelfAttentionModule, SpectralNormalization, InstanceNormalization
 from train_utils import normalize_contrast
 import matplotlib.pyplot as plt
 
@@ -39,7 +39,7 @@ class ConditionalBatchNormalization(Layer):
         self.k = tf.math.sqrt(1 / filters)
 
         # Instance Normalization | shifting and scaling switched off
-        self.norm = InstanceNormalization(center=False, scale=False)
+        self.norm = InstanceNormalization()
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
@@ -59,20 +59,14 @@ class ConditionalBatchNormalization(Layer):
             x: Output tensor of conditional batch normalization layer
         """
         # Pass input through Instance Normalization layer
-        #x = self.norm(x)
-        mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
-        mean = tf.expand_dims(mean, axis=2)
-        std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
-        std = tf.expand_dims(std, axis=2)
-
-        x = (x - mean) / std
+        x = self.norm.call(x)
 
         # Get conditional gamma and beta
         gamma_c = self.gamma(z_k)
         beta_c = self.beta(z_k)
 
         # Compute output
-        x = (1 + gamma_c) * x + beta_c
+        x = gamma_c * x + beta_c
 
         return x
 

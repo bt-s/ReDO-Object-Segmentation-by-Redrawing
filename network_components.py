@@ -309,3 +309,17 @@ class ResidualBlock(Layer):
         return x
 
 
+class InstanceNormalization(Layer):
+    def __init__(self, affine=False):
+        super(InstanceNormalization, self).__init__()
+        self.affine = affine
+
+    def call(self, x):
+
+        mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
+        mean = tf.expand_dims(mean, axis=2)
+        std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
+        std = tf.expand_dims(std, axis=2)
+        x = (x - mean) / std
+
+        return x
