@@ -228,10 +228,9 @@ class TestSpectralNormSmall(unittest.TestCase):
         """
         conv = network_components.SpectralNormalization(
             tf.keras.layers.Conv2D(1, kernel_size=(3, 3), strides=(1, 1),
-                                   weights=[W],
-                                   padding='same',
-                                   input_shape=self.input_shape_tf,
-                                   use_bias=False))
+                 weights=[W], padding='same',input_shape=self.input_shape_tf,
+                 use_bias=False))
+
         pool = tf.keras.layers.AveragePooling2D(pool_size=3)
 
         model = tf.keras.Sequential()
