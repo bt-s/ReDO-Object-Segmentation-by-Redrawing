@@ -48,8 +48,8 @@ class SpectralNormalization(Layer):
         the weights
 
         Args:
-            x:
-            training:
+            x: The input
+            training: Whether we are training
         """
         # Perform forward pass of Conv2D layer on first iteration to initialize
         # the weights. Introduce 'kernel_orig' as trainable variables
@@ -58,9 +58,10 @@ class SpectralNormalization(Layer):
             _ = self.layer(x)
 
             self.layer.kernel_orig = self.layer.add_weight('kernel_orig',
-                                                           self.layer.kernel.shape, trainable=True)
+                    self.layer.kernel.shape, trainable=True)
 
-            # Get layer's weights. Contains 'kernel', 'kernel_orig' and possibly 'bias'
+            # Get layer's weights. Contains 'kernel', 'kernel_orig' and
+            # possibly 'bias'
             weights = self.layer.get_weights()
 
             # Set 'kernel_orig' to network's weights. 'kernel_orig' will be
@@ -70,8 +71,7 @@ class SpectralNormalization(Layer):
                 self.layer.set_weights([weights[0], weights[0]])
             else:
                 # Conv layer with bias
-                self.layer.set_weights([weights[0], weights[1],
-                                        weights[0]])
+                self.layer.set_weights([weights[0], weights[1], weights[0]])
 
             # SN layer initialized
             self.init = True
@@ -79,7 +79,7 @@ class SpectralNormalization(Layer):
         # Normalize weights before every forward pass
         W_sn = self.normalize_weights(training=training)
 
-        # assign normalized weights to kernel for forward pass
+        # Assign normalized weights to kernel for forward pass
         # Weight's are assigned as tf.Tensor in order not to
         # add a new variable to the model
         self.layer.kernel = W_sn
@@ -89,8 +89,16 @@ class SpectralNormalization(Layer):
 
         return output
 
+
     def normalize_weights(self, training: bool):
-        """Normalize the Conv2D layer's weights w.r.t. their spectral norm."""
+        """Normalize the Conv2D layer's weights w.r.t. their spectral norm
+
+        Args:
+            training: whether we are training
+
+        Returns:
+            W_sn; Spectrally normalized weights
+        """
 
         # Number of filter kernels in Conv2D layer
         filters = self.layer.weights[0].shape.as_list()[-1]
@@ -113,6 +121,7 @@ class SpectralNormalization(Layer):
 
         return W_sn
 
+
     def power_iteration(self, W: tf.Tensor) -> Tuple[tf.Tensor, tf.Tensor]:
         """Compute approximate spectral norm.
 
@@ -132,6 +141,7 @@ class SpectralNormalization(Layer):
             spectral_norm = tf.matmul(tf.matmul(u, W, transpose_a=True), v)
 
         return spectral_norm, u
+
 
     @staticmethod
     def normalize_l2(v: tf.Tensor, epsilon: float = 1e-12) -> tf.Tensor:
@@ -156,6 +166,7 @@ class SelfAttentionModule(Layer):
         Attributes:
             init_gain: Initializer gain for orthogonal initialization
             output_channels: Number of output channels
+            key_size: The number of key channels
         """
         super(SelfAttentionModule, self).__init__()
 
@@ -187,6 +198,7 @@ class SelfAttentionModule(Layer):
             kernel_size=(1, 1), kernel_initializer=orthogonal(gain=init_gain),
             use_bias=False))
 
+
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of attention layer
         Args:
@@ -197,6 +209,7 @@ class SelfAttentionModule(Layer):
         y = self.gamma * o + x
 
         return y
+
 
     def compute_attention(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Compute attention maps
@@ -273,6 +286,7 @@ class ResidualBlock(Layer):
         # only create pooling layer if down-sampling block
         self.pool = AveragePooling2D(pool_size=(2, 2))
 
+
     def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
         """Perform call of residual block layer call
 
@@ -282,10 +296,8 @@ class ResidualBlock(Layer):
         """
 
         # Perform ReLU if not first block
-        if not self.first_block:
-            h = self.relu(x)
-        else:
-            h = x
+        if not self.first_block: h = self.relu(x)
+        else: h = x
 
         # Pass input through pipeline
         h = self.conv_1.call(h, training)
@@ -314,8 +326,8 @@ class InstanceNormalization(Layer):
         super(InstanceNormalization, self).__init__()
         self.affine = affine
 
-    def call(self, x):
 
+    def call(self, x):
         mean = tf.expand_dims(tf.math.reduce_mean(x, axis=(1, 2)), axis=1)
         mean = tf.expand_dims(mean, axis=2)
         std = tf.expand_dims(tf.math.reduce_std(x, axis=(1, 2)), axis=1)
@@ -323,3 +335,4 @@ class InstanceNormalization(Layer):
         x = (x - mean) / std
 
         return x
+
