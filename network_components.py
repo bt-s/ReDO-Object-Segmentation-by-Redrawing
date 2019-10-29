@@ -330,7 +330,7 @@ class InstanceNormalization(Layer):
         """
         super(InstanceNormalization, self).__init__()
         self.affine = affine
-        self.eps = 1e-5
+        self.eps = 1e-12
 
     def build(self, input_shape):
         if self.affine:

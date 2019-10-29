@@ -44,7 +44,7 @@ class ConvolutionalBlock(Model):
             padding=padding, strides=stride, use_bias=use_bias,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
-        self.conv_block.add(InstanceNormalization())
+        self.conv_block.add(InstanceNormalization(affine=True))
         self.conv_block.add(ReLU())
 
 
@@ -176,7 +176,7 @@ class ResidualBlock(Model):
                 padding='same', use_bias=False,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = InstanceNormalization()
+        self.in_1 = InstanceNormalization(affine=True)
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
