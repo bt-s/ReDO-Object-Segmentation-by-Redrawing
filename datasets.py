@@ -215,14 +215,13 @@ class Dataset:
 
 class BirdDataset(Dataset):
     """Class to support the birds dataset"""
-    def __init__(self, root: str='Datasets/Birds/', image_dir: str='images/',
+    def __init__(self, root: str='../../Datasets/Birds/', image_dir: str='images/',
                  label_dir: str='labels/', path_file: str='paths.txt',
                  split_file: str='train_val_test_split.txt'):
         """See `Dataset.__init__`"""
         super().__init__(root, image_dir, label_dir, path_file, split_file)
         self.type = 'Bird'
         self.n_classes = 2
-
 
     @staticmethod
     def read_file(filename: str, file_type: str):
@@ -310,7 +309,7 @@ class BirdDataset(Dataset):
 
 class FlowerDataset(Dataset):
     """Subclass for the Flowers dataset"""
-    def __init__(self, root: str='../../Datasets/Flowers/', image_dir:
+    def __init__(self, root: str='Datasets/Flowers/', image_dir:
             str='images/', label_dir: str='labels/', path_file: str='paths.txt',
             split_file: str='train_val_test_split.txt'):
         """See `Dataset.__init__`"""
