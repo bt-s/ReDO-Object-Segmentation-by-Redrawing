@@ -29,7 +29,8 @@ from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
 from information_network import InformationConservationNetwork
 
-SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset}
+SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset,
+                      'faces': FaceDataset}
 
 
 def parse_train_args():
@@ -59,6 +60,7 @@ def parse_train_args():
     parser.add_argument('-lr2', '--learning-rate-mask', type=float,
                         default=1e-5)
     parser.add_argument('-l', '--log-level', type=int, default=30)
+    parser.add_argument('-r', '--root', type=str)
 
     return parser.parse_args(argv[1:])
 
@@ -366,8 +368,12 @@ def train(args: Namespace, datasets: Dict):
 def main(args: Namespace):
     tf.get_logger().setLevel(args.log_level)
 
-    # Get datasets
-    dataset = SUPPORTED_DATASETS[args.dataset]()
+    # Get dataset
+    if not args.root:
+        dataset = SUPPORTED_DATASETS[args.dataset]()
+    else:
+        dataset = SUPPORTED_DATASETS[args.dataset](root=args.root)
+
 
     # Split dataset into training and validation sets
     # Note: there is no test set, since this is an unsupervised learning approach
