@@ -19,13 +19,15 @@ from tensorflow.keras.metrics import Mean
 from argparse import ArgumentParser, Namespace
 from sys import argv
 from typing import Dict
+import matplotlib.pyplot as plt
+
 from datasets import BirdDataset, FlowerDataset, FaceDataset
-from train_utils import UnsupervisedLoss, log_training, compute_IoU, compute_accuracy, normalize_contrast
+from train_utils import UnsupervisedLoss, log_training, compute_IoU, \
+        compute_accuracy, normalize_contrast
 from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
 from information_network import InformationConservationNetwork
-import matplotlib.pyplot as plt
 
 SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset}
 
@@ -61,8 +63,9 @@ def parse_train_args():
     return parser.parse_args(argv[1:])
 
 
-def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z: tf.Tensor, optimizers: Dict,
-                         models: Dict, metrics: Dict, adversarial_loss: UnsupervisedLoss):
+def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z:
+        tf.Tensor, optimizers: Dict, models: Dict, metrics: Dict,
+        adversarial_loss: UnsupervisedLoss):
     """Updates the real and fake discriminator losses
 
     Args:
@@ -74,7 +77,6 @@ def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z: 
         metrics: Dict of metrics
         adversarial_loss: Loss
     """
-
     # Get segmentation masks
     masks_1 = models['F'](images_real_1)
 
@@ -82,13 +84,13 @@ def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z: 
     images_fake, _ = models['G'](images_real_1, masks_1, z, training=True)
 
     with tf.GradientTape() as tape:
-
         # Get logits for real and fake images
         d_logits_real = models['D'](images_real_2, True)
         d_logits_fake = models['D'](images_fake, True)
 
         # Compute discriminator loss for current batch
-        d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(d_logits_real, d_logits_fake)
+        d_loss_real, d_loss_fake = adversarial_loss.get_d_loss(d_logits_real,
+                d_logits_fake)
         d_loss = -d_loss_real - d_loss_fake
 
     # Compute gradients
@@ -102,9 +104,10 @@ def discriminator_update(images_real_1: tf.Tensor, images_real_2: tf.Tensor, z: 
     metrics['d_f_loss'](d_loss_fake)
 
 
-def generator_update(images_real: tf.Tensor, z: tf.Tensor, models: Dict, metrics: Dict, optimizers: Dict,
-                     adversarial_loss: UnsupervisedLoss):
+def generator_update(images_real: tf.Tensor, z: tf.Tensor, models: Dict,
+        metrics: Dict, optimizers: Dict, adversarial_loss: UnsupervisedLoss):
     """Updates the generator and information losses
+
     Args:
         images_real: Image batch (of size n) of shape (n, 128, 128, 3)
         z: noise vector | shape: [batch_size, n_classes, 1, 1, 32]
@@ -113,14 +116,13 @@ def generator_update(images_real: tf.Tensor, z: tf.Tensor, models: Dict, metrics
         optimizers: Dict of optimizers
         adversarial_loss: Loss
     """
-
     with tf.GradientTape() as tape:
-
         # Get segmentation masks
         masks = models['F'](images_real)
 
         # Get fake images from generator
-        images_fake, regions_fake = models['G'](images_real, masks, z, training=True)
+        images_fake, regions_fake = models['G'](images_real, masks, z,
+                training=True)
 
         # Get the recovered z-value from the information network
         z_hat = models['I'](regions_fake, training=True)
@@ -133,38 +135,42 @@ def generator_update(images_real: tf.Tensor, z: tf.Tensor, models: Dict, metrics
         g_loss = g_loss_d + g_loss_i
 
     # Compute gradients
-    gradients = tape.gradient(g_loss, models['F'].trainable_variables +
-                              models['G'].trainable_variables + models['I'].trainable_variables)
+    gradients = tape.gradient(g_loss, models['F'].trainable_variables + \
+            models['G'].trainable_variables + models['I'].trainable_variables)
     f_gradients = gradients[:len(models['F'].trainable_variables)]
-    g_gradients = gradients[len(models['F'].trainable_variables):-len(models['I'].trainable_variables)]
+    g_gradients = gradients[len(models['F'].trainable_variables):-len(
+        models['I'].trainable_variables)]
     i_gradients = gradients[-len(models['I'].trainable_variables):]
 
     # Update weights
     optimizers['G'].apply_gradients(zip(g_gradients,
-                                        models['G'].trainable_variables))
+        models['G'].trainable_variables))
     optimizers['F'].apply_gradients(zip(f_gradients,
-                                        models['F'].trainable_variables))
+        models['F'].trainable_variables))
     optimizers['I'].apply_gradients(zip(i_gradients,
-                                        models['I'].trainable_variables))
+        models['I'].trainable_variables))
 
     # Update summary with computed loss
     metrics['g_d_loss'](g_loss_d)
     metrics['g_i_loss'](g_loss_i)
 
 
-def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict, iter: int, session_name: str):
-    """
-    Perform validation step at training checkpoint.
-    :param validation_set: validation set
-    :param models: Dict of models
-    :param metrics: Dict of metrics
-    :param iter: current training iteration
-    :param session_name: session name
+def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict,
+        iter: int, session_name: str):
+    """Perform validation step at training checkpoint.
+
+    Args:
+        validation_set: validation set
+        models: Dict of models
+        metrics: Dict of metrics
+        iter: current training iteration
+        session_name: session name
     """
 
-    # Compute IoU and Accuracy for all possible permutations of channels | only for two channels
+    # Compute IoU and Accuracy for all possible permutations of channels
+    # Currently only for two channels
     # TODO: Extend to Multi-class computation
-    # create separate metrics for both output channels
+    # Create separate metrics for both output channels
     perm_mean_accuracy_1 = Mean()
     perm_mean_iou_1 = Mean()
     perm_mean_accuracy_2 = Mean()
@@ -172,7 +178,6 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
 
     # Iterate over validation set
     for images_real, masks_real in validation_set:
-
         # Get predictions
         masks = models['F'](images_real)
 
@@ -183,7 +188,7 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
                 perm_mean_accuracy_1(perm_accuracy)
                 perm_mean_iou_1(perm_iou)
             else:
-                # reverse predicted masks
+                # Reverse predicted masks
                 masks = tf.reverse(masks, axis=[-1])
                 perm_accuracy = compute_accuracy(masks, masks_real)
                 perm_iou = compute_IoU(masks, masks_real)
@@ -194,20 +199,25 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
     if perm_mean_accuracy_1.result() >= perm_mean_accuracy_2.result():
         metrics['accuracy'](perm_mean_accuracy_1.result())
         metrics['IoU'](perm_mean_iou_1.result())
-        # no permutation performed, foreground ID same as in label
+        # No permutation performed, foreground ID same as in label
         foreground_id = 1
     else:
         metrics['accuracy'](perm_mean_accuracy_2.result())
         metrics['IoU'](perm_mean_iou_2.result())
-        # masks reversed, foreground ID flipped
+        # Masks reversed, foreground ID flipped
         foreground_id = 0
 
     # Save exemplary images
-    val_iter = validation_set.__iter__()  # Create iterator
-    images_real, _ = next(val_iter)  # Get one batch
-    masks = models['F'](images_real)  # Get masks
-    tf.random.set_seed(10)  # Set seed to use same noise vector at every checkpoint
-    z = tf.random.normal([images_real.shape[0], masks.shape[3], 1, 1, 32])  # sample noise vector
+    # Create iterator
+    val_iter = validation_set.__iter__()
+    # Get one batch
+    images_real, _ = next(val_iter)
+    # Get masks
+    masks = models['F'](images_real)
+    # Set seed to use same noise vector at every checkpoint
+    tf.random.set_seed(10)
+    # Sample noise vector
+    z = tf.random.normal([images_real.shape[0], masks.shape[3], 1, 1, 32])
     # Get batch of fake images
     images_fake, regions_fake = models['G'](images_real, masks, z, training=False)
 
@@ -218,15 +228,18 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
         # Show real image
         ax[i, 0].imshow(normalize_contrast(images_real[i].numpy()))
         # Show predicted foreground mask
-        ax[i, 1].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
+        ax[i, 1].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray',
+                vmin=0.0, vmax=1.0)
         # Show redrawn regions (input to information network)
         ax[i, 2].imshow(normalize_contrast(regions_fake[i].numpy()))
         # Show fake images with redrawn foreground and background
         if foreground_id == 0:
             ax[i, 3].imshow(normalize_contrast(images_fake[i].numpy()))
-            ax[i, 4].imshow(normalize_contrast(images_fake[images_real.shape[0] + i].numpy()))
+            ax[i, 4].imshow(normalize_contrast(images_fake[images_real.shape[0]
+                + i].numpy()))
         else:
-            ax[i, 3].imshow(normalize_contrast(images_fake[images_real.shape[0] + i].numpy()))
+            ax[i, 3].imshow(normalize_contrast(images_fake[images_real.shape[0]
+                + i].numpy()))
             ax[i, 4].imshow(normalize_contrast(images_fake[i].numpy()))
         # Turn off axis for all subplots
         [ax[i, j].axis('off') for j in range(n_images)]
@@ -253,10 +266,10 @@ def create_network_objects(args: Namespace) -> Dict:
         models: Segmentation, generator, discriminator and information networks
     """
     segmentation_network = SegmentationNetwork(n_classes=args.n_classes,
-                                               init_gain=args.init_gain, weight_decay=args.weight_decay)
+            init_gain=args.init_gain, weight_decay=args.weight_decay)
 
     generator = Generator(n_classes=args.n_classes, n_input=args.z_dim,
-                          init_gain=args.init_gain, base_channels=args.base_channels)
+            init_gain=args.init_gain, base_channels=args.base_channels)
 
     discriminator = Discriminator(init_gain=args.init_gain)
 
@@ -324,12 +337,12 @@ def train(args: Namespace, datasets: Dict):
         z = tf.random.normal([args.batch_size, args.n_classes, 1, 1, args.z_dim])
 
         # Update generator
-        generator_update(batch_images_real_1, z, models,
-                             metrics, optimizers, adversarial_loss)
+        generator_update(batch_images_real_1, z, models, metrics, optimizers,
+                adversarial_loss)
 
         # Update discriminator
-        discriminator_update(batch_images_real_1, batch_images_real_2, z, optimizers,
-                             models, metrics, adversarial_loss)
+        discriminator_update(batch_images_real_1, batch_images_real_2, z,
+                optimizers, models, metrics, adversarial_loss)
 
         # Checkpoint
         if iter % args.checkpoint_iter == 0 and iter != 0:
@@ -341,7 +354,8 @@ def train(args: Namespace, datasets: Dict):
                         model.model_name + '/Iteration_' + str(iter) + '/')
 
             # Perform validation step
-            validation_step(datasets['val'], models, metrics, iter, args.session_name)
+            validation_step(datasets['val'], models, metrics, iter,
+                    args.session_name)
 
             # Log training for tensorboard and print summary
             log_training(metrics, tensorboard_writer, iter)
@@ -359,10 +373,10 @@ def main(args: Namespace):
     # Split dataset into training and validation sets
     # Note: there is no test set, since this is an unsupervised learning approach
     training_dataset = dataset.get_split(split='training',
-                                         batch_size=args.batch_size, shuffle=True)
+            batch_size=args.batch_size, shuffle=True)
 
     validation_dataset = dataset.get_split(split='validation',
-                                           batch_size=args.batch_size)
+            batch_size=args.batch_size)
 
     # Create dataset dict for train function
     datasets = {'train': training_dataset, 'val': validation_dataset}
@@ -376,3 +390,4 @@ def main(args: Namespace):
 
 if __name__ == '__main__':
     main(parse_train_args())
+
