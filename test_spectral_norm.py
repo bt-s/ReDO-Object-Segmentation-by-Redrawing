@@ -18,13 +18,19 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import tensorflow as tf
+from tensorflow.keras.layers import Conv2D, AveragePooling2D, Layer, Flatten, \
+        Dense, MaxPool2D
 import numpy as np
 import torch
+from torch.nn import Module, MSELoss, Conv2d, Sequential, AvgPool2d, ReLU, \
+        MaxPool2d, Linear, utils
 
-import network_components
+from network_components import SpectralNormalization
 
 USE_SPECTRAL_NORM = True
 DECIMALS = 2
+LEARNING_RATE = 0.1
+
 
 def configure_harness():
     tf.keras.backend.set_floatx('float64')
@@ -85,11 +91,12 @@ def copy_t_tensor_to_tf(tensor_t: torch.Tensor, order: Tuple) -> tf.Tensor:
     return tf.convert_to_tensor(tensor_np)
 
 
-def convert_t_model_to_tf_weights(model_t: torch.nn.Module) -> List[tf.Tensor]:
+def convert_t_model_to_tf_weights(model_t: Module) -> List[tf.Tensor]:
     """Convert a torch model to a list of tensorflow weights
 
     Args:
         model_t: The torch model to convert
+
     Returns:
         W_tf: Corresponding to the proper weights for a tensorflow model
     """
@@ -104,8 +111,8 @@ def convert_t_model_to_tf_weights(model_t: torch.nn.Module) -> List[tf.Tensor]:
     return W_tf
 
 
-def backward_t(model: torch.nn.Module, inp: torch.Tensor,
-        label: torch.Tensor) -> torch.nn.Module:
+def backward_t(model: Module, inp: torch.Tensor,
+        label: torch.Tensor) -> Module:
     """Perform one backward step on `model` with `inp` and `label`
 
     Args:
@@ -116,8 +123,8 @@ def backward_t(model: torch.nn.Module, inp: torch.Tensor,
     Returns:
         model: The same model, but with the weights updated
     """
-    loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.1)
+    loss_fn = MSELoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=LEARNING_RATE)
 
     model.zero_grad()
     out = model(inp)
@@ -141,7 +148,7 @@ def backward_tf(model: tf.keras.Model, inp: tf.Tensor,
         model: The same model, but with the weights updated
     """
     loss_fn = tf.keras.losses.MeanSquaredError()
-    optimizer = tf.keras.optimizers.SGD(learning_rate=0.1)
+    optimizer = tf.keras.optimizers.SGD(learning_rate=LEARNING_RATE)
 
     with tf.GradientTape() as tape:
         out = model(inp)
@@ -153,7 +160,7 @@ def backward_tf(model: tf.keras.Model, inp: tf.Tensor,
     return model
 
 
-def forward_outputs(model_t: torch.nn.Module, model_tf: tf.keras.Model,
+def forward_outputs(model_t: Module, model_tf: tf.keras.Model,
         shape_t: Tuple, order: Tuple) -> Tuple[np.ndarray, np.ndarray]:
     """Perform a forward pass on a torch and tensorflow model, and return
     their outputs in numpy format. Inputs are created randomly
@@ -174,7 +181,7 @@ def forward_outputs(model_t: torch.nn.Module, model_tf: tf.keras.Model,
 
 
 def backward_forward_outputs(input_shape_t: Tuple, order: Tuple,
-        model_t: torch.nn.Module, model_tf: tf.keras.Model) -> Tuple[np.ndarray,
+        model_t: Module, model_tf: tf.keras.Model) -> Tuple[np.ndarray,
                 np.ndarray]:
     """Perform a backward pass for both `model_t` and `model_tf` and then a
     forward pass and return the outputs
@@ -201,7 +208,7 @@ def backward_forward_outputs(input_shape_t: Tuple, order: Tuple,
 
 
 class TestSpectralNormSmall(unittest.TestCase):
-    def _build_torch_model(self, W: torch.Tensor) -> torch.nn.Module:
+    def _build_torch_model(self, W: torch.Tensor) -> Module:
         """Create the torch model for the test
 
         Args:
@@ -209,11 +216,11 @@ class TestSpectralNormSmall(unittest.TestCase):
         Returns:
             model: the torch model
         """
-        conv_layer = torch.nn.Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
+        conv_layer = Conv2d(1, 1, kernel_size=(3, 3), stride=(1, 1),
                         padding=1, bias=False)
         conv_layer.weight.data = W
-        model = torch.nn.Sequential(torch.nn.utils.spectral_norm(conv_layer),
-                torch.nn.AvgPool2d(3))
+        model = Sequential(utils.spectral_norm(conv_layer),
+                AvgPool2d(3))
 
         return model
 
@@ -226,12 +233,11 @@ class TestSpectralNormSmall(unittest.TestCase):
         Returns:
             model: The created model
         """
-        conv = network_components.SpectralNormalization(
-            tf.keras.layers.Conv2D(1, kernel_size=(3, 3), strides=(1, 1),
-                 weights=[W], padding='same',input_shape=self.input_shape_tf,
-                 use_bias=False))
+        conv = SpectralNormalization(Conv2D(1,
+            kernel_size=(3, 3), strides=(1, 1), weights=[W], padding='same',
+            input_shape=self.input_shape_tf, use_bias=False))
 
-        pool = tf.keras.layers.AveragePooling2D(pool_size=3)
+        pool = AveragePooling2D(pool_size=3)
 
         model = tf.keras.Sequential()
         model.add(conv)
@@ -273,7 +279,7 @@ class TestSpectralNormSmall(unittest.TestCase):
         np.testing.assert_array_almost_equal(out_t, out_tf, decimal=DECIMALS)
 
 
-class TorchModelLarge(torch.nn.Module):
+class TorchModelLarge(Module):
     def __init__(self, channels: int):
         """Create the model
 
@@ -282,18 +288,18 @@ class TorchModelLarge(torch.nn.Module):
         """
         super(TorchModelLarge, self).__init__()
 
-        self.conv1 = torch.nn.Conv2d(channels, 8, kernel_size=(3, 3),
+        self.conv1 = Conv2d(channels, 8, kernel_size=(3, 3),
                                      bias=False).double()
-        self.relu = torch.nn.ReLU()
-        self.conv2 = torch.nn.Conv2d(8, 16, kernel_size=(3, 3), bias=False).double()
-        self.pool = torch.nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
+        self.relu = ReLU()
+        self.conv2 = Conv2d(8, 16, kernel_size=(3, 3), bias=False).double()
+        self.pool = MaxPool2d(kernel_size=(2, 2), stride=(2, 2))
         self.flat = torch.nn.Flatten()
-        self.lin1 = torch.nn.Linear(144, 32, bias=False).double()
-        self.lin2 = torch.nn.Linear(32, 1, bias=False).double()
+        self.lin1 = Linear(144, 32, bias=False).double()
+        self.lin2 = Linear(32, 1, bias=False).double()
 
         if USE_SPECTRAL_NORM:
-            self.conv1 = torch.nn.utils.spectral_norm(self.conv1).double()
-            self.conv2 = torch.nn.utils.spectral_norm(self.conv2).double()
+            self.conv1 = utils.spectral_norm(self.conv1).double()
+            self.conv2 = utils.spectral_norm(self.conv2).double()
 
 
     def forward(self, inp: torch.Tensor) -> torch.Tensor:
@@ -318,7 +324,7 @@ class TorchModelLarge(torch.nn.Module):
 
 
 class TestSpectralNormLarge(unittest.TestCase):
-    class NullLayer(tf.keras.layers.Layer):
+    class NullLayer(Layer):
         def __init__(self):
             super(TestSpectralNormLarge.NullLayer, self).__init__()
 
@@ -333,22 +339,21 @@ class TestSpectralNormLarge(unittest.TestCase):
         """
         model = tf.keras.Sequential()
 
-        conv1 = tf.keras.layers.Conv2D(8, 3, activation='relu', use_bias=False,
+        conv1 = Conv2D(8, 3, activation='relu', use_bias=False,
                 input_shape=self.input_shape_tf[1:], weights=[W[0]])
-        conv2 = tf.keras.layers.Conv2D(16, 3, activation='relu', use_bias=False,
-                weights=[W[1]])
+        conv2 = Conv2D(16, 3, activation='relu', use_bias=False, weights=[W[1]])
 
         if USE_SPECTRAL_NORM:
-            conv1 = network_components.SpectralNormalization(conv1)
-            conv2 = network_components.SpectralNormalization(conv2)
+            conv1 = SpectralNormalization(conv1)
+            conv2 = SpectralNormalization(conv2)
 
         model.add(conv1)
         model.add(conv2)
 
-        model.add(tf.keras.layers.MaxPool2D(strides=(2, 2)))
-        model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(32, use_bias=False, weights=[W[2]]))
-        model.add(tf.keras.layers.Dense(1, use_bias=False, activation='relu',
+        model.add(MaxPool2D(strides=(2, 2)))
+        model.add(Flatten())
+        model.add(Dense(32, use_bias=False, weights=[W[2]]))
+        model.add(Dense(1, use_bias=False, activation='relu',
             weights=[W[3]]))
 
         return model
