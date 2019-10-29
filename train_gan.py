@@ -348,7 +348,6 @@ def train(args: Namespace, datasets: Dict):
         if iter % args.checkpoint_iter == 0 and iter != 0:
             # Save model weights
             for model in models.values():
-                if model.model_name == 'Segmentation_Network':
                     model.save_weights(
                         'Weights/' + args.session_name + '/' +
                         model.model_name + '/Iteration_' + str(iter) + '/')
