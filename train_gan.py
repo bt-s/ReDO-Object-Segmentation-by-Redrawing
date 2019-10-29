@@ -256,9 +256,10 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
     ax[0, 3].set_title('Fake FG')
     ax[0, 4].set_title('Fake BG')
 
-    if not path.exists('Images'):
-        makedirs('Images')
-    plt.savefig('Images/' + session_name + '/Iteration_' + str(iter) + '.png')
+    savedir = 'Images/' + session_name
+    if not path.exists(savedir):
+        makedirs(savedir)
+    plt.savefig(savedir + '/Iteration_' + str(iter) + '.png')
     plt.close()
 
 
