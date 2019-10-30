@@ -196,7 +196,7 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
                 perm_mean_iou_2(perm_iou)
 
     # Take the better permutation and update metrics
-    if perm_mean_accuracy_1.result() >= perm_mean_accuracy_2.result():
+    if perm_mean_iou_1.result() >= perm_mean_iou_2.result():
         metrics['accuracy'](perm_mean_accuracy_1.result())
         metrics['IoU'](perm_mean_iou_1.result())
         # No permutation performed, foreground ID same as in label
