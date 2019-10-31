@@ -60,12 +60,12 @@ def get_file_path_for_checkpoint(args, model_name):
 def load_models(args):
     gen_net = Generator(n_classes=2, n_input=args.z_dim, init_gain=0.0,
                         base_channels=args.base_channels)
-    gen_net.load_weights(get_file_path_for_checkpoint(gen_net.model_name))
+    gen_net.load_weights(get_file_path_for_checkpoint(args, gen_net.model_name))
 
     segment_net = SegmentationNetwork(n_classes=2, init_gain=0.0,
                                       weight_decay=1e-4)
     segment_net.load_weights(get_file_path_for_checkpoint(
-        segment_net.model_name))
+        args, segment_net.model_name))
 
     return segment_net, gen_net
 
