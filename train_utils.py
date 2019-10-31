@@ -308,7 +308,7 @@ def compute_IoU(batch_predictions: tf.Tensor,
     batch_IoUs = None
 
     # Iterate over detected object classes
-    for object_class in range(n_object_classes):
+    for object_class in range(1, n_object_classes):
         # True positives | predictions and label show current class
         tps = tf.reduce_sum(tf.where(tf.logical_and(
             class_predictions == object_class, class_labels == object_class),
@@ -335,7 +335,7 @@ def compute_IoU(batch_predictions: tf.Tensor,
 
     # Check that number of computed IoUs equals number of detected objects in
     # the entire batch
-    assert (batch_IoUs.shape[0] == batch_predictions.shape[0] * n_object_classes)
+    #assert (batch_IoUs.shape[0] == batch_predictions.shape[0] * n_object_classes)
 
     # Return the mean IoU score
     return tf.reduce_mean(batch_IoUs)
