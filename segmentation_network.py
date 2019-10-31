@@ -142,7 +142,6 @@ class PPM(Model):
         # Scale 3
         x_3 = self.pad.call(x)
         x_3 = self.avg_pool_3(x_3)
-        print(x_3.shape)
         x_3 = self.conv_3(x_3)
         x_3 = self.upsample_3(x_3)
         x_3 = x_3[:, 2:-2, 2:-2, :]
@@ -186,7 +185,7 @@ class ResidualBlock(Model):
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_2 = InstanceNormalization()
+        self.in_2 = InstanceNormalization(affine=True)
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
