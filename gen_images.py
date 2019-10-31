@@ -143,8 +143,9 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         ax[i, 0].imshow(normalize_contrast(images_real[i].numpy()))
 
         # Show true mask
+        # TODO: isn't 0/1 data set dependent?
         ax[i, 1].imshow(
-            masks_real[i, :, :, foreground_id].numpy(),
+            masks_real[i, :, :, 1].numpy(),
             cmap='gray', vmin=0.0, vmax=1.0)
 
         # Show predicted foreground mask
