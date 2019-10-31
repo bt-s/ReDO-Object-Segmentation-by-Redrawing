@@ -173,7 +173,7 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         ax[0, 3 + i].set_title('Fake FG - ' + str(i + 1))
         ax[0, 3 + i + args.n_redraws].set_title('Fake BG - ' + (str(i + 1)))
 
-    savedir = 'Images/' + args.session_name
+    savedir = 'ReportImages/' + args.session_name
     if not path.exists(savedir):
         makedirs(savedir)
     plt.savefig(savedir + '/Iteration_' + str(iter) + '.png')
