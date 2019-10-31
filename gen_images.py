@@ -143,7 +143,7 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         ax[i, 0].imshow(normalize_contrast(images_real[i].numpy()))
 
         # Show true mask
-        ax[i, 1].imshow(normalize_contrast(masks_real[i].numpy()))
+        ax[i, 1].imshow(masks_real[i].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
 
         # Show predicted foreground mask
         ax[i, 2].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray',
