@@ -352,7 +352,7 @@ def train(args: Namespace, datasets: Dict):
                 optimizers, models, metrics, adversarial_loss)
 
         # Save Generator
-        if iter % args.checkpoint_iter * 2 == 0 and iter != 0:
+        if iter % args.checkpoint_iter * 4 == 0 and iter != 0:
             # Save model weights
             for model in models.values():
                 if model.model_name == 'Generator':
