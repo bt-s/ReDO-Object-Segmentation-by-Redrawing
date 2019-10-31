@@ -143,7 +143,9 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         ax[i, 0].imshow(normalize_contrast(images_real[i].numpy()))
 
         # Show true mask
-        ax[i, 1].imshow(masks_real[i].numpy(), cmap='gray', vmin=0.0, vmax=1.0)
+        ax[i, 1].imshow(
+            masks_real[i, :, :, foreground_id].numpy(),
+            cmap='gray', vmin=0.0, vmax=1.0)
 
         # Show predicted foreground mask
         ax[i, 2].imshow(masks[i, :, :, foreground_id].numpy(), cmap='gray',
@@ -152,7 +154,7 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         foreground_idx = i if foreground_id == 0 else images_real.shape[0] + i
         background_idx = i if foreground_id == 1 else images_real.shape[0] + i
 
-        for redraw in args.n_redraws:
+        for redraw in range(args.n_redraws):
             ax[i, 3 + redraw].imshow(
                 normalize_contrast(images_fake[redraw][foreground_idx].numpy()))
             ax[i, 3 + redraw + args.n_redraws].imshow(normalize_contrast(
@@ -162,7 +164,7 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
         [ax[i, j].axis('off') for j in range(n_cols)]
 
     # Set titles
-    title = 'Iteration: ' + str(iter)
+    title = 'Iteration: ' + str(args.load_checkpoint_num)
     fig.suptitle(title)
     ax[0, 0].set_title('Image')
     ax[0, 1].set_title('True Mask')
@@ -174,7 +176,8 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
     savedir = 'ReportImages/' + args.session_name
     if not path.exists(savedir):
         makedirs(savedir)
-    plt.savefig(savedir + '/Iteration_' + str(iter) + '.png')
+    plt.savefig(savedir + '/Iteration_' + str(args.load_checkpoint_num) +
+                '.png')
     plt.close()
 
 
