@@ -54,7 +54,7 @@ def parse_args():
 
 def get_file_path_for_checkpoint(args, model_name):
     return 'Weights/' + args.session_name + '/' + model_name + '/Iteration_' \
-           + args.load_checkpoint_num
+           + str(args.load_checkpoint_num)
 
 
 def load_models(args):
@@ -135,10 +135,8 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
 
     # Draw results
     n_cols = 3 + 2 * args.n_redraws
-    zero_space_gs = gridspec.GridSpec(args.n_images, n_cols)
-    zero_space_gs.update(wspace=0.0, hspace=0.0)
     fig, ax = plt.subplots(nrows=args.n_images, ncols=n_cols,
-                           gridspec_kw=zero_space_gs)
+                           gridspec_kw={'wspace': 0.0, 'hspace': 0.0})
 
     for i in range(args.n_images):
         # Show real image
@@ -182,8 +180,8 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
 
 def main(args):
     segment_net, gen_net = load_models(args)
-    if args.root:
-        dataset = SUPPORTED_DATASETS[args.dataset](root=args.root)
+    if args.root_dir:
+        dataset = SUPPORTED_DATASETS[args.dataset](root=args.root_dir)
     else:
         dataset = SUPPORTED_DATASETS[args.dataset]()
     validation_set = dataset.get_split(split='validation',
