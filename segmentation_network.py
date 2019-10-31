@@ -44,7 +44,7 @@ class ConvolutionalBlock(Model):
             padding=padding, strides=stride, use_bias=use_bias,
             kernel_initializer=orthogonal(gain=init_gain),
             kernel_regularizer=L1L2(l2=weight_decay)))
-        self.conv_block.add(InstanceNormalization())
+        self.conv_block.add(InstanceNormalization(affine=True))
         self.conv_block.add(ReLU())
 
 
@@ -98,20 +98,19 @@ class PPM(Model):
         self.upsample_2 = UpSampling2D(size=pool_size_2,
                 interpolation='bilinear')
 
-        # Scale 3 (4x4 Output)
-        # TODO: Maybe change this to // 3
-        pool_size_3 = (input_shape[0] // 4, input_shape[1] // 4)
-        self.avg_pool_3 = AveragePooling2D(pool_size_3)
+        # Scale 3 (3x3 Output)
+        pool_size_3 = (12, 12)
+        self.avg_pool_3 = AveragePooling2D(pool_size_3, padding='same')
+        self.pad = ReflectionPadding2D(padding=(2, 2))
         self.conv_3 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.upsample_3 = UpSampling2D(size=pool_size_3,
                 interpolation='bilinear')
 
-        # Scale 4 (8x8 Output)
-        # TODO: Maybe change this to // 6
+        # Scale 4 (6x6 Output)
         # Note: The upsampling issue should be fixed
-        pool_size_4 = (input_shape[0] // 8, input_shape[1] // 8)
+        pool_size_4 = (6, 6)
         self.avg_pool_4 = AveragePooling2D(pool_size_4)
         self.conv_4 = Conv2D(filters=1, kernel_size=(1, 1), padding='same',
                 kernel_initializer=orthogonal(gain=init_gain),
@@ -141,14 +140,19 @@ class PPM(Model):
         x_2 = self.upsample_2(x_2)
 
         # Scale 3
-        x_3 = self.avg_pool_3(x)
+        x_3 = self.pad.call(x)
+        x_3 = self.avg_pool_3(x_3)
+        print(x_3.shape)
         x_3 = self.conv_3(x_3)
         x_3 = self.upsample_3(x_3)
+        x_3 = x_3[:, 2:-2, 2:-2, :]
 
         # Scale 4
-        x_4 = self.avg_pool_4(x)
+        x_4 = self.pad.call(x)
+        x_4 = self.avg_pool_4(x_4)
         x_4 = self.conv_4(x_4)
         x_4 = self.upsample_4(x_4)
+        x_4 = x_4[:, 2:-2, 2:-2, :]
 
         # Concatenate feature maps
         x = tf.concat((x, x_1, x_2, x_3, x_4), 3)
@@ -176,14 +180,13 @@ class ResidualBlock(Model):
                 padding='same', use_bias=False,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
-        self.in_1 = InstanceNormalization()
+        self.in_1 = InstanceNormalization(affine=True)
         self.relu = ReLU()
         self.conv_2 = Conv2D(filters=n_channels, kernel_size=(3, 3),
                 padding='same', use_bias=True,
                 kernel_initializer=orthogonal(gain=init_gain),
                 kernel_regularizer=L1L2(l2=weight_decay))
         self.in_2 = InstanceNormalization()
-
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform call of Residual block
