@@ -136,7 +136,7 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
     # Draw results
     n_cols = 3 + 2 * args.n_redraws
     fig, ax = plt.subplots(nrows=args.n_images, ncols=n_cols,
-                           gridspec_kw={'wspace': 0.0, 'hspace': 0.0})
+                           gridspec_kw={'wspace': 0.0, 'hspace': 0.001})
 
     for i in range(args.n_images):
         # Show real image
@@ -166,12 +166,12 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
     # Set titles
     title = 'Iteration: ' + str(args.load_checkpoint_num)
     fig.suptitle(title)
-    ax[0, 0].set_title('Image')
-    ax[0, 1].set_title('True Mask')
-    ax[0, 2].set_title('Predicted Mask')
-    for i in range(args.n_redraws):
-        ax[0, 3 + i].set_title('Fake FG - ' + str(i + 1))
-        ax[0, 3 + i + args.n_redraws].set_title('Fake BG - ' + (str(i + 1)))
+    # ax[0, 0].set_title('Image')
+    # ax[0, 1].set_title('True Mask')
+    # ax[0, 2].set_title('Predicted Mask')
+    # for i in range(args.n_redraws):
+    #     ax[0, 3 + i].set_title('Fake FG - ' + str(i + 1))
+    #     ax[0, 3 + i + args.n_redraws].set_title('Fake BG - ' + (str(i + 1)))
 
     savedir = 'ReportImages/' + args.session_name
     if not path.exists(savedir):

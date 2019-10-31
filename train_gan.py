@@ -29,6 +29,7 @@ from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
 from information_network import InformationConservationNetwork
+from gen_images import redraw_images
 
 SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset,
                       'faces': FaceDataset}
@@ -262,6 +263,12 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
     plt.savefig(savedir + '/Iteration_' + str(iter) + '.png')
     plt.close()
 
+    redraw_args = Namespace(n_redraws=3, n_images=5,
+                            load_checkpoint_num=iter,
+                            session_name=session_name, seed=10)
+    redraw_images(models['G'], models['F'], validation_set, foreground_id,
+                  redraw_args)
+
 
 def create_network_objects(args: Namespace) -> Dict:
     """Create, and initialize, all necessary networks for training
@@ -356,18 +363,18 @@ def train(args: Namespace, datasets: Dict):
             # Save model weights
             for model in models.values():
                 if model.model_name == 'Generator':
-                    model.save_weights(
+                    model.save(
                         'Weights/' + args.session_name + '/' +
-                        model.model_name + '/Iteration_' + str(iter) + '/')
+                        model.model_name + '/Iteration_' + str(iter))
 
         # Checkpoint
         if iter % args.checkpoint_iter == 0 and iter != 0:
             # Save model weights
             for model in models.values():
                 if model.model_name == 'Segmentation_Network':
-                    model.save_weights(
+                    model.save(
                         'Weights/' + args.session_name + '/' +
-                        model.model_name + '/Iteration_' + str(iter) + '/')
+                        model.model_name + '/Iteration_' + str(iter))
 
             # Perform validation step
             validation_step(datasets['val'], models, metrics, iter,
