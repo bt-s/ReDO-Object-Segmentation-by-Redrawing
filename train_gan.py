@@ -351,10 +351,20 @@ def train(args: Namespace, datasets: Dict):
         discriminator_update(batch_images_real_1, batch_images_real_2, z,
                 optimizers, models, metrics, adversarial_loss)
 
+        # Save Generator
+        if iter % 2000 == 0 and iter != 0:
+            # Save model weights
+            for model in models.values():
+                if model.model_name == 'Generator':
+                    model.save_weights(
+                        'Weights/' + args.session_name + '/' +
+                        model.model_name + '/Iteration_' + str(iter) + '/')
+
         # Checkpoint
         if iter % args.checkpoint_iter == 0 and iter != 0:
             # Save model weights
             for model in models.values():
+                if model.model_name == 'Segmentation_Network':
                     model.save_weights(
                         'Weights/' + args.session_name + '/' +
                         model.model_name + '/Iteration_' + str(iter) + '/')
