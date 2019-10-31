@@ -54,7 +54,7 @@ def parse_args():
 
 def get_file_path_for_checkpoint(args, model_name):
     return 'Weights/' + args.session_name + '/' + model_name + '/Iteration_' \
-           + str(args.load_checkpoint_num)
+           + str(args.load_checkpoint_num) + '/'
 
 
 def load_models(args):
