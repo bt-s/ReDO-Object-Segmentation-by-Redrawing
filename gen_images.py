@@ -7,7 +7,7 @@
                    masks inferred by the model for the foreground, then n
                    generated drawings of the foreground, and n of the
                    background. The other class is superimposed on the redrawn
-                   part in both cases. The same sampled z is used for m images.
+                   part in both cases.
 
 For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
@@ -17,7 +17,6 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 
 from tensorflow.keras.metrics import Mean
 
@@ -25,6 +24,7 @@ from argparse import ArgumentParser, Namespace
 from os import path, makedirs
 from sys import argv
 from random import randint
+from typing import Tuple, Dict
 
 import datasets
 from train_utils import normalize_contrast, compute_accuracy, compute_IoU
@@ -37,7 +37,7 @@ SUPPORTED_DATASETS = {'flowers': datasets.FlowerDataset,
                       'faces': datasets.FaceDataset}
 
 
-def parse_args():
+def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument('dataset', choices=SUPPORTED_DATASETS.keys())
     parser.add_argument('-r', '--n-redraws', type=int)
@@ -52,12 +52,29 @@ def parse_args():
     return parser.parse_args(argv[1:])
 
 
-def get_file_path_for_checkpoint(args, model_name):
+def get_file_path_for_checkpoint(args: Namespace, model_name: str) -> str:
+    """get the proper file path for the given model name and session name and
+    iteration
+
+    Args:
+        args: must have session_name, and load_checkpoint_num, the checkpoint
+              to save and read from
+        model_name: the name of the model
+    Returns:
+        A string corresponding to the saved checkpoint
+    """
     return 'Weights/' + args.session_name + '/' + model_name + '/Iteration_' \
            + str(args.load_checkpoint_num) + '/'
 
 
-def load_models(args):
+def load_models(args: Namespace) -> Tuple[tf.keras.Model, tf.keras.Model]:
+    """Load the segmentation network and generator
+
+    Args:
+        args: must contain z_dim and base_channels see `parse_args`
+    Returns:
+        the recovered segmentation network and generator
+    """
     gen_net = Generator(n_classes=2, n_input=args.z_dim, init_gain=0.0,
                         base_channels=args.base_channels)
     gen_net.load_weights(get_file_path_for_checkpoint(args, gen_net.model_name))
@@ -70,7 +87,18 @@ def load_models(args):
     return segment_net, gen_net
 
 
-def compute_metrics(segment_net, validation_set):
+def compute_metrics(segment_net: tf.keras.Model,
+                    validation_set: tf.data.Dataset) -> \
+        Tuple[Dict[str, Mean], int]:
+    """Compute the accuracy and IoU over the `validation_set` and give the
+    foreground index
+
+    Args:
+        segment_net: the segmentation network
+        validation_set: the validation set
+    Returns:
+        A dict of accuracy and IoU, and the foreground index
+    """
     perm_mean_accuracy_1 = Mean()
     perm_mean_iou_1 = Mean()
     perm_mean_accuracy_2 = Mean()
@@ -111,7 +139,18 @@ def compute_metrics(segment_net, validation_set):
     return metrics, foreground_id
 
 
-def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
+def redraw_images(gen_net: tf.keras.Model, segment_net: tf.keras.Model,
+                  validation_set: tf.data.Dataset, foreground_id: int,
+                  args: Namespace):
+    """Draw the masks and redraw foreground/background for the report
+
+    Args:
+        gen_net: The trained generator
+        segment_net: The trained segmentation network
+        validation_set: The validation set
+        foreground_id: 0/1 the index on the mask of which is the foreground
+        args: the arguments from the command line
+    """
     val_iter = iter(validation_set)
     # Get one batch
     images_real, masks_real = next(val_iter)
@@ -182,7 +221,12 @@ def redraw_images(gen_net, segment_net, validation_set, foreground_id, args):
     plt.close()
 
 
-def main(args):
+def main(args: Namespace):
+    """Recover the generator and segmentation network and draw the images for
+    the report
+    Args:
+        args: Command line args see `parse_args`
+    """
     segment_net, gen_net = load_models(args)
     if args.root_dir:
         dataset = SUPPORTED_DATASETS[args.dataset](root=args.root_dir)
@@ -196,5 +240,5 @@ def main(args):
     print(metrics)
 
 
-if __name__ == '__main__':
-    main(parse_args())
+# if __name__ == '__main__':
+#     main(parse_args())
