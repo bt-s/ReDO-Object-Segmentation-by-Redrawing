@@ -223,7 +223,6 @@ class BirdDataset(Dataset):
         self.type = 'Bird'
         self.n_classes = 2
 
-
     @staticmethod
     def read_file(filename: str, file_type: str):
         """See `Dataset.read_file` but with specific formatting for the

@@ -322,7 +322,7 @@ class ResidualBlock(Layer):
 
 
 class InstanceNormalization(Layer):
-    def __init__(self, affine=False):
+    def __init__(self, filters, affine=False):
         """Class constructor
 
         Attributs:
@@ -330,14 +330,13 @@ class InstanceNormalization(Layer):
         """
         super(InstanceNormalization, self).__init__()
         self.affine = affine
-        self.eps = 1e-5
-
-    def build(self, input_shape):
+        self.eps = 1e-12
         if self.affine:
-            self.gamma = self.add_weight(name='gamma', shape=[1, input_shape[-1]],
+            self.gamma = self.add_weight(name='gamma', shape=[1, filters],
                                         initializer=tf.ones_initializer, trainable=True)
-            self.beta = self.add_weight(name='beta', shape=[1, input_shape[-1]],
+            self.beta = self.add_weight(name='beta', shape=[1, filters],
                                         initializer=tf.zeros_initializer, trainable=True)
+
 
     def call(self, x: tf.Tensor) -> tf.Tensor:
         """Perform instance normalization
