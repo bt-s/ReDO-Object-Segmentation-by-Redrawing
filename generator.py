@@ -17,7 +17,6 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
-
 import matplotlib.pyplot as plt
 
 from train_utils import normalize_contrast
@@ -41,7 +40,7 @@ class ConditionalBatchNormalization(Layer):
         self.k = tf.math.sqrt(1 / filters)
 
         # Instance Normalization | shifting and scaling switched off
-        self.norm = InstanceNormalization()
+        self.norm = InstanceNormalization(filters=filters)
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
