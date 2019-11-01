@@ -18,6 +18,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import Mean
 from argparse import ArgumentParser, Namespace
 from sys import argv
+from os import path, makedirs
 from typing import Dict
 import matplotlib.pyplot as plt
 
@@ -28,8 +29,10 @@ from generator import Generator
 from discriminator import Discriminator
 from segmentation_network import SegmentationNetwork
 from information_network import InformationConservationNetwork
+from gen_images import redraw_images
 
-SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset}
+SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset,
+                      'faces': FaceDataset}
 
 
 def parse_train_args():
@@ -59,6 +62,7 @@ def parse_train_args():
     parser.add_argument('-lr2', '--learning-rate-mask', type=float,
                         default=1e-5)
     parser.add_argument('-l', '--log-level', type=int, default=30)
+    parser.add_argument('-r', '--root', type=str)
 
     return parser.parse_args(argv[1:])
 
@@ -252,8 +256,18 @@ def validation_step(validation_set: tf.data.Dataset, models: Dict, metrics: Dict
     ax[0, 2].set_title('Regions')
     ax[0, 3].set_title('Fake FG')
     ax[0, 4].set_title('Fake BG')
-    plt.savefig('Images/' + session_name + '/Iteration_' + str(iter) + '.png')
+
+    savedir = 'Images/' + session_name
+    if not path.exists(savedir):
+        makedirs(savedir)
+    plt.savefig(savedir + '/Iteration_' + str(iter) + '.png')
     plt.close()
+
+    redraw_args = Namespace(n_redraws=3, n_images=5,
+                            load_checkpoint_num=iter,
+                            session_name=session_name, seed=10)
+    redraw_images(models['G'], models['F'], validation_set, foreground_id,
+                  redraw_args)
 
 
 def create_network_objects(args: Namespace) -> Dict:
@@ -345,7 +359,7 @@ def train(args: Namespace, datasets: Dict):
                 optimizers, models, metrics, adversarial_loss)
 
         # Save Generator
-        if iter % 2000 == 0 and iter != 0:
+        if iter % args.checkpoint_iter * 4 == 0 and iter != 0:
             # Save model weights
             for model in models.values():
                 if model.model_name == 'Generator':
@@ -376,8 +390,12 @@ def train(args: Namespace, datasets: Dict):
 def main(args: Namespace):
     tf.get_logger().setLevel(args.log_level)
 
-    # Get datasets
-    dataset = SUPPORTED_DATASETS[args.dataset]()
+    # Get dataset
+    if not args.root:
+        dataset = SUPPORTED_DATASETS[args.dataset]()
+    else:
+        dataset = SUPPORTED_DATASETS[args.dataset](root=args.root)
+
 
     # Split dataset into training and validation sets
     # Note: there is no test set, since this is an unsupervised learning approach
