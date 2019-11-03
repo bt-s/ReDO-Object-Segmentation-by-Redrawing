@@ -41,7 +41,7 @@ class ConditionalBatchNormalization(Layer):
         self.k = tf.math.sqrt(1 / filters)
 
         # Instance Normalization | shifting and scaling switched off
-        self.norm = InstanceNormalization()
+        self.norm = InstanceNormalization(filters=filters)
 
         # Learnable functions for mapping of noise vector to scale and shift
         # parameters gamma and beta
