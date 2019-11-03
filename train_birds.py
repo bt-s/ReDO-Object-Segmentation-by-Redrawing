@@ -411,7 +411,7 @@ def main(args: Namespace):
     args.n_classes = dataset.n_classes
 
     lambdas = [3, 3.5, 4, 4.5, 5.5, 6, 6.5, 7]
-    init_gains = [0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2]
+    init_gains = [0.8]
 
     for lambda_ in lambdas:
         for init_g in init_gains:
