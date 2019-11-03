@@ -17,6 +17,7 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
+
 import matplotlib.pyplot as plt
 
 from train_utils import normalize_contrast
