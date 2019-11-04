@@ -17,9 +17,6 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
-import matplotlib.pyplot as plt
-
-from train_utils import normalize_contrast
 from network_components import SelfAttentionModule, SpectralNormalization, \
         InstanceNormalization
 
@@ -100,10 +97,10 @@ class InputBlock(Layer):
 
         # Initial dense layer (implemented as 1x1 convolution) |
         # Number of output channels*16  for reshaping into 4x4 feature maps
-        self.dense = SpectralNormalization(Conv2D(
+        self.dense = Conv2D(
             filters=self.output_channels * 4 * 4, kernel_size=(1, 1),
             kernel_initializer=orthogonal(gain=init_gain),
-            bias_initializer=random_uniform_initializer(-self.k, self.k)))
+            bias_initializer=random_uniform_initializer(-self.k, self.k))
 
 
     def call(self, z_k: tf.Tensor, training: bool) -> tf.Tensor:
