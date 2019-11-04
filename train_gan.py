@@ -61,6 +61,8 @@ def parse_train_args():
                         default=1e-4)
     parser.add_argument('-lr2', '--learning-rate-mask', type=float,
                         default=1e-5)
+    parser.add_argument('-lr3', '--learning-rate-inf', type=float,
+                        default=3e-4)
     parser.add_argument('-l', '--log-level', type=int, default=30)
     parser.add_argument('-r', '--root', type=str)
 
@@ -315,7 +317,7 @@ def train(args: Namespace, datasets: Dict):
                        beta_1=args.beta_1, beta_2=args.beta_2)
     d_optimizer = Adam(learning_rate=args.learning_rate_other,
                        beta_1=args.beta_1, beta_2=args.beta_2)
-    i_optimizer = Adam(learning_rate=args.learning_rate_other,
+    i_optimizer = Adam(learning_rate=args.learning_rate_inf,
                        beta_1=args.beta_1, beta_2=args.beta_2)
     f_optimizer = Adam(learning_rate=args.learning_rate_mask,
                        beta_1=args.beta_1, beta_2=args.beta_2)
