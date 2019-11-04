@@ -346,7 +346,7 @@ class FlowerDataset(Dataset):
         # background_color = 29
         # label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
         #     label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
-        # label = tf.one_hot(label, depth=2)
+        segmented_label = tf.one_hot(segmented_label, depth=2)
 
         return image, segmented_label
 
