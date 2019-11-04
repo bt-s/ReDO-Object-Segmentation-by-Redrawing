@@ -336,12 +336,12 @@ class FlowerDataset(Dataset):
         image = (image / 255.0) * 2 - 1
 
 
-        segmented_label = 1 - tf.expand_dims(tf.cast(
+        segmented_label = 1 - tf.cast(
             tf.logical_or(
                 tf.logical_or(label[:, :, 0] == 0, label[:, :, 1] == 0),
                 label[:, :, 2] == 254),
-            tf.float32
-        ), 2)
+            tf.int32
+        )
         # Binarize and get one-hot label
         # background_color = 29
         # label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
