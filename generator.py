@@ -113,7 +113,7 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of dense layer
-        x = self.dense.call(z_k)
+        x = self.dense(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         return x
