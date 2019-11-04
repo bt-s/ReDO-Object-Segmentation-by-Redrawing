@@ -336,7 +336,7 @@ class FlowerDataset(Dataset):
         image = (image / 255.0) * 2 - 1
 
 
-        segmented_label = 1 - tf.expand_dims(tf.cast(#label[:, :, 2] == 254,
+        segmented_label = 1 - tf.expand_dims(tf.cast(
             tf.logical_or(
                 tf.logical_or(label[:, :, 0] == 0, label[:, :, 1] == 0),
                 label[:, :, 2] == 254),
@@ -348,7 +348,7 @@ class FlowerDataset(Dataset):
         #     label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
         # label = tf.one_hot(label, depth=2)
 
-        return image, label, segmented_label
+        return image, segmented_label
 
 
 class FaceDataset(Dataset):
