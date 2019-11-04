@@ -103,18 +103,17 @@ class InputBlock(Layer):
             bias_initializer=random_uniform_initializer(-self.k, self.k))
 
 
-    def call(self, z_k: tf.Tensor, training: bool) -> tf.Tensor:
+    def call(self, z_k: tf.Tensor) -> tf.Tensor:
         """To call the first input block of the generator network
 
         Args:
             z_k: Noise vector for class k
-            training: True if training phase
 
         Returns:
             x: Output tensor
         """
         # Reshape output of dense layer
-        x = self.dense.call(z_k, training)
+        x = self.dense.call(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         return x
@@ -342,7 +341,7 @@ class ClassGenerator(Model):
         """
 
         # First block | Output: [batch_size, 4, 4, 16*base_channels]
-        x = self.block_1.call(z_k, training=training)
+        x = self.block_1.call(z_k)
 
         # Second block | Residual Upsampling | Output: [batch_size, 64, 64,
         # 2*base_channels]
