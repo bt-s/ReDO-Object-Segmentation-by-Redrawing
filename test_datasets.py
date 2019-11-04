@@ -36,16 +36,17 @@ if __name__ == '__main__':
     flowers_validation = Flowers.get_split(split='validation')
     flowers_test = Flowers.get_split(split='test')
 
-    for idx, (batch_images, batch_labels) in enumerate(flowers_training):
-        for image, label in zip(batch_images, batch_labels):
+    for idx, (batch_images, batch_labels, seg) in enumerate(flowers_training):
+        for image, label, segi in zip(batch_images, batch_labels, seg):
             print(tf.reduce_max(image).numpy())
             print(tf.reduce_min(image).numpy())
+            print(segi.shape)
             fig, ax = plt.subplots(1, 2)
-            image = image.numpy()
+            image = label.numpy()
             image -= np.min(image)
             image /= (np.max(image) - np.min(image))
             ax[0].imshow(image)
-            ax[1].imshow(label.numpy()[:, :, 1], cmap='gray')
+            ax[1].imshow(segi.numpy()[:, :, 0], cmap='gray')
             plt.show()
 
     # Faces
