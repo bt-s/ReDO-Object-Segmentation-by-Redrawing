@@ -101,10 +101,10 @@ class InputBlock(Layer):
 
         # Initial dense layer (implemented as 1x1 convolution) |
         # Number of output channels*16  for reshaping into 4x4 feature maps
-        self.dense = SpectralNormalization(Conv2D(
+        self.dense = Conv2D(
             filters=self.output_channels * 4 * 4, kernel_size=(1, 1),
             kernel_initializer=orthogonal(gain=init_gain),
-            bias_initializer=random_uniform_initializer(-self.k, self.k)))
+            bias_initializer=random_uniform_initializer(-self.k, self.k))
 
 
     def call(self, z_k: tf.Tensor, training: bool) -> tf.Tensor:
@@ -118,7 +118,7 @@ class InputBlock(Layer):
             x: Output tensor
         """
         # Reshape output of dense layer
-        x = self.dense.call(z_k, training)
+        x = self.dense(z_k)
         x = tf.reshape(x, (-1, 4, 4, self.output_channels))
 
         return x
