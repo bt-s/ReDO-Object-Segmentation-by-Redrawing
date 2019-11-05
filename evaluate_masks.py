@@ -20,17 +20,17 @@ from train_utils import *
 
 
 if __name__ == '__main__':
-    session_name = 'Unsupervised_Flowers'
+    session_name = 'Unsupervised_Birds'
 
     # Create datasets
-    dataset = FlowerDataset()
+    dataset = BirdDataset()
     test_dataset = dataset.get_split('test', batch_size=25)
 
     # Create model and load weights
     model = SegmentationNetwork(n_classes=dataset.n_classes,
             init_gain=0.0, weight_decay=1e-4)
 
-    iteration = 300
+    iteration = 7500
     model.load_weights((f'Weights/{session_name}/{str(model.model_name)}/' \
             f'Iteration_{iteration}/'))
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         batch_predictions = model(batch_images)
         # Compute loss for current batch
         batch_loss = loss(batch_predictions, batch_labels)
-        batch_predictions = tf.reverse(batch_predictions, axis=[-1])
+        #batch_predictions = tf.reverse(batch_predictions, axis=[-1])
         # Update respective metric with computed loss
         metrics['test_loss'](batch_loss)
         batch_accuracy = compute_accuracy(batch_predictions, batch_labels)
