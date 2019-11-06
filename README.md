@@ -28,7 +28,7 @@ Script to load pre-trained segmentation and generator networks, and create figur
 Script to obtain the _Flowers_, _Labeled Faces in the Wild_ and _CUB-200-2011_ data sets.
 
 `test_all.py`\
-Script to test the datasets preprocessing, discriminator, generator, instance normalization and segmentation network of the ReDO application.``` 
+Script to test the datasets preprocessing, discriminator, generator, instance normalization and segmentation network of the ReDO application. 
 
 `train_gan.py`\
 Script to train the ReDO GAN.
