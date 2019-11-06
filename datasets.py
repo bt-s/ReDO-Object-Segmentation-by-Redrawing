@@ -276,11 +276,12 @@ class BirdDataset(Dataset):
             split_image_paths = tf.gather_nd(split_image_paths, subset_indices)
             split_label_paths = tf.gather_nd(split_label_paths, subset_indices)
         else:
-            indices = tf.range(0, split_image_paths.shape[0],
-                    dtype=tf.dtypes.int64)
-            shuffled_indices = tf.random.shuffle(indices)
-            split_image_paths = tf.gather(split_image_paths, shuffled_indices)
-            split_label_paths = tf.gather(split_label_paths, shuffled_indices)
+            #indices = tf.range(0, split_image_paths.shape[0],
+            #        dtype=tf.dtypes.int64)
+            #shuffled_indices = tf.random.shuffle(indices)
+            #split_image_paths = tf.gather(split_image_paths, shuffled_indices)
+            #split_label_paths = tf.gather(split_label_paths, shuffled_indices)
+            pass
 
         # Create tf.data.dataset objects for images and labels
         # Zip datasets to create (image, label) dataset
@@ -324,7 +325,7 @@ class FlowerDataset(Dataset):
         """See `Dataset.transform`"""
         # Load image and label as tf.tensor
         image = tf.image.decode_jpeg(tf.io.read_file(image_path), channels=3)
-        label = tf.image.decode_png(tf.io.read_file(label_path), channels=1)
+        label = tf.image.decode_jpeg(tf.io.read_file(label_path), channels=3)
 
         # Resize images to match required input dimensions
         image = tf.image.resize(image, size=(128, 128),
@@ -335,13 +336,20 @@ class FlowerDataset(Dataset):
         # Center image
         image = (image / 255.0) * 2 - 1
 
-        # Binarize and get one-hot label
-        background_color = 29
-        label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
-            label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
-        label = tf.one_hot(label, depth=2)
 
-        return image, label
+        segmented_label = 1 - tf.cast(
+            tf.logical_or(
+                tf.logical_or(label[:, :, 0] == 0, label[:, :, 1] == 0),
+                label[:, :, 2] == 254),
+            tf.int32
+        )
+        # Binarize and get one-hot label
+        # background_color = 29
+        # label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
+        #     label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
+        segmented_label = tf.one_hot(segmented_label, depth=2)
+
+        return image, segmented_label
 
 
 class FaceDataset(Dataset):
