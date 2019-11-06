@@ -24,16 +24,16 @@ from sys import argv
 from random import randint
 from typing import Tuple, Dict
 
-from redo import datasets
-from redo.train_utils import compute_accuracy, compute_IoU
+from redo import data
+from redo import train_utils
 from redo import Generator
 from redo import SegmentationNetwork
 from redo import redraw_images
 
 
-SUPPORTED_DATASETS = {'flowers': datasets.FlowerDataset,
-                      'birds': datasets.BirdDataset,
-                      'faces': datasets.FaceDataset}
+SUPPORTED_DATASETS = {'flowers': data.FlowerDataset,
+                      'birds': data.BirdDataset,
+                      'faces': data.FaceDataset}
 
 
 def parse_args() -> Namespace:
@@ -112,15 +112,15 @@ def compute_metrics(segment_net: tf.keras.Model,
 
         for perm_id in range(2):
             if perm_id == 0:
-                perm_accuracy = compute_accuracy(masks, masks_real)
-                perm_iou = compute_IoU(masks, masks_real)
+                perm_accuracy = train_utils.compute_accuracy(masks, masks_real)
+                perm_iou = train_utils.compute_IoU(masks, masks_real)
                 perm_mean_accuracy_1(perm_accuracy)
                 perm_mean_iou_1(perm_iou)
             else:
                 # Reverse predicted masks
                 masks = tf.reverse(masks, axis=[-1])
-                perm_accuracy = compute_accuracy(masks, masks_real)
-                perm_iou = compute_IoU(masks, masks_real)
+                perm_accuracy = train_utils.compute_accuracy(masks, masks_real)
+                perm_iou = train_utils.compute_IoU(masks, masks_real)
                 perm_mean_accuracy_2(perm_accuracy)
                 perm_mean_iou_2(perm_iou)
 

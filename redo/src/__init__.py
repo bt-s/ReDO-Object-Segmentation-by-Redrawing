@@ -1,4 +1,4 @@
-from redo.src import datasets
+from redo.src import datasets as data
 from redo.src.discriminator import Discriminator
 from redo.src.draw import redraw_images
 from redo.src.generator import Generator

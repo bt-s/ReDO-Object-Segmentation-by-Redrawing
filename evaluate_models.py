@@ -15,7 +15,7 @@ import numpy as np
 
 from redo import SegmentationNetwork
 from redo import Generator
-from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo import data
 from redo import Discriminator
 
 if __name__ == '__main__':
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     iteration = 3000
 
     # Create datasets
-    dataset = FlowerDataset()
+    dataset = data.FlowerDataset()
     test_dataset = dataset.get_split('training', batch_size=25)
 
     # Initializer

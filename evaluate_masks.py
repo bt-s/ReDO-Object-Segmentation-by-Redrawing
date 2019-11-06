@@ -14,10 +14,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.metrics import Mean, Accuracy, MeanIoU
 
-from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo import data
 from redo import SegmentationNetwork
-from redo.train_utils import *
+from redo import train_utils as utils
 
+BirdDataset = data.BirdDataset
+FlowerDataset = data.FlowerDataset
+FaceDataset = data.FaceDataset
 
 if __name__ == '__main__':
     session_name = 'Unsupervised_Birds'
@@ -53,9 +56,9 @@ if __name__ == '__main__':
         #batch_predictions = tf.reverse(batch_predictions, axis=[-1])
         # Update respective metric with computed loss
         metrics['test_loss'](batch_loss)
-        batch_accuracy = compute_accuracy(batch_predictions, batch_labels)
+        batch_accuracy = utils.compute_accuracy(batch_predictions, batch_labels)
         metrics['test_accuracy'](batch_accuracy)
-        batch_iou = compute_IoU(batch_predictions, batch_labels)
+        batch_iou = utils.compute_IoU(batch_predictions, batch_labels)
         metrics['test_IoU'](batch_iou)
 
         for image, prediction, label in zip(batch_images, batch_predictions,

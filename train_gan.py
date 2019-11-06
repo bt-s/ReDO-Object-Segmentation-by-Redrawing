@@ -22,17 +22,23 @@ from os import path, makedirs
 from typing import Dict
 import matplotlib.pyplot as plt
 
-from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
-from redo.train_utils import UnsupervisedLoss, log_training, compute_IoU, \
-        compute_accuracy, normalize_contrast
+from redo import data
+from redo import train_utils
+
 from redo import Generator
 from redo import Discriminator
 from redo import SegmentationNetwork
 from redo import InformationConservationNetwork
 from redo import redraw_images
 
-SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset,
-                      'faces': FaceDataset}
+UnsupervisedLoss = train_utils.UnsupervisedLoss
+log_training = train_utils.log_training
+compute_IoU = train_utils.compute_IoU
+compute_accuracy = train_utils.compute_accuracy
+normalize_contrast = train_utils.normalize_contrast
+
+SUPPORTED_DATASETS = {'flowers': data.FlowerDataset, 'birds': data.BirdDataset,
+                      'faces': data.FaceDataset}
 
 
 def parse_train_args():
