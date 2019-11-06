@@ -325,7 +325,7 @@ class FlowerDataset(Dataset):
         """See `Dataset.transform`"""
         # Load image and label as tf.tensor
         image = tf.image.decode_jpeg(tf.io.read_file(image_path), channels=3)
-        label = tf.image.decode_jpeg(tf.io.read_file(label_path), channels=3)
+        label = tf.image.decode_png(tf.io.read_file(label_path), channels=1)
 
         # Resize images to match required input dimensions
         image = tf.image.resize(image, size=(128, 128),
@@ -336,20 +336,13 @@ class FlowerDataset(Dataset):
         # Center image
         image = (image / 255.0) * 2 - 1
 
-
-        segmented_label = 1 - tf.cast(
-            tf.logical_or(
-                tf.logical_or(label[:, :, 0] == 0, label[:, :, 1] == 0),
-                label[:, :, 2] == 254),
-            tf.int32
-        )
         # Binarize and get one-hot label
-        # background_color = 29
-        # label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
-        #     label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
-        segmented_label = tf.one_hot(segmented_label, depth=2)
+        background_color = 29
+        label = tf.cast(tf.where(tf.logical_or(label <= 0.9 * background_color,
+            label >= 1.1*background_color), 1, 0), tf.uint8)[:, :, 0]
+        label = tf.one_hot(label, depth=2)
 
-        return image, segmented_label
+        return image, label
 
 
 class FaceDataset(Dataset):

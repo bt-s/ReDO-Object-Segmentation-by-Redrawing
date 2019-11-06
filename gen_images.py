@@ -44,9 +44,9 @@ def parse_args() -> Namespace:
     parser.add_argument('-i', '--n-images', type=int)
     parser.add_argument('-s', '--seed', type=int, default=randint(0, 1e12))
     parser.add_argument('-p', '--session-name', type=str)
-    parser.add_argument('-d', '--root-dir', default='Datasets/Flowers/', type=str)
-    parser.add_argument('-c', '--base-channels', default=32, type=int)
-    parser.add_argument('-z', '--z-dim', default= 32, type=int)
+    parser.add_argument('-d', '--root-dir', type=str)
+    parser.add_argument('-c', '--base-channels', type=int)
+    parser.add_argument('-z', '--z-dim', type=int)
     parser.add_argument('-l', '--load-checkpoint-num', type=int)
 
     return parser.parse_args(argv[1:])
@@ -164,7 +164,7 @@ def redraw_images(gen_net: tf.keras.Model, segment_net: tf.keras.Model,
 
     for i in range(args.n_redraws):
         z.append(
-            tf.tile(tf.random.normal([1, masks.shape[3], 1, 1, 32]), [images_real.shape[0], 1, 1, 1, 1])
+            tf.random.normal([images_real.shape[0], masks.shape[3], 1, 1, 32])
         )
 
         # Get batch of fake images
@@ -240,5 +240,5 @@ def main(args: Namespace):
     print(metrics)
 
 
-if __name__ == '__main__':
-    main(parse_args())
+# if __name__ == '__main__':
+#     main(parse_args())
