@@ -13,10 +13,10 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo.src.datasets import BirdDataset, FlowerDataset, FaceDataset
 
 
-if __name__ == '__main__':
+def test():
 
     # Birds
     Birds = BirdDataset(root='Datasets/Birds/', image_dir='images/',
@@ -49,16 +49,16 @@ if __name__ == '__main__':
             plt.show()
 
     # Faces
-    exit(0)
+    #exit(0)
     # Not supported at the moment
-    Faces = FaceDataset(root='Datasets/Faces/', image_dir='images/',
-                        label_dir='labels/', path_file='paths.txt',
-                        split_file='train_val_test_split.txt')
-
-    Faces.summary()
-    faces_training = Faces.get_split(split='training')
-    faces_validation = Faces.get_split(split='validation', size=400,
-                                       shuffle=True)
-    faces_test = Faces.get_split(split='test')
+    # Faces = FaceDataset(root='Datasets/Faces/', image_dir='images/',
+    #                     label_dir='labels/', path_file='paths.txt',
+    #                     split_file='train_val_test_split.txt')
+    #
+    # Faces.summary()
+    # faces_training = Faces.get_split(split='training')
+    # faces_validation = Faces.get_split(split='validation', size=400,
+    #                                    shuffle=True)
+    # faces_test = Faces.get_split(split='test')
 
 

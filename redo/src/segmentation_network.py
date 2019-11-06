@@ -18,7 +18,7 @@ from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.regularizers import L1L2
 from typing import Union, Tuple
 
-from network_components import InstanceNormalization
+from redo.src.network_components import InstanceNormalization
 
 
 class ConvolutionalBlock(Model):

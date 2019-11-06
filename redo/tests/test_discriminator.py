@@ -14,13 +14,13 @@ import tensorflow as tf
 
 from tensorflow.keras.optimizers import Adam
 
-import generator
-from discriminator import Discriminator
-from train_utils import UnsupervisedLoss
+from redo.src.generator import Generator
+from redo.src.discriminator import Discriminator
+from redo.src.train_utils import UnsupervisedLoss
 
-if __name__ == '__main__':
+def test():
     # Create generator object
-    generator = generator.Generator(n_classes=2, n_input=32, base_channels=32,
+    generator = Generator(n_classes=2, n_input=32, base_channels=32,
             init_gain=1.0)
 
     # Discriminator network
@@ -50,8 +50,7 @@ if __name__ == '__main__':
     masks = tf.concat((mask, 1-mask), axis=3)
 
     with tf.GradientTape() as tape:
-        batch_image_fake = generator(batch_image_real, masks,
-                update_generator=False, training=True)
+        batch_image_fake = generator(batch_image_real, masks, training=True)
         d_logits_fake = discriminator(batch_image_fake, training=True)
         d_logits_real = discriminator(batch_image_real, training=True)
 

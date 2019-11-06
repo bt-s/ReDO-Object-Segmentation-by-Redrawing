@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-"""information_network.py - Implementation of the information network and its
-                            components
+"""discriminator.py - Implementation of the discriminator network and its
+                      components
 
 For the NeurIPS Reproducibility Challenge and the DD2412 Deep Learning, Advanced
 course at KTH Royal Institute of Technology.
@@ -12,29 +12,27 @@ __author__ = "Adrian Chmielewski-Anders, Mats Steinweg & Bas Straathof"
 
 import tensorflow as tf
 from tensorflow.keras import Model, Sequential
+from tensorflow.keras.layers import Layer, Dense, BatchNormalization, ReLU, \
+        Conv2D, MaxPool2D, Softmax, GlobalAveragePooling2D, AveragePooling2D
 from tensorflow.keras.initializers import orthogonal
-from tensorflow.keras.layers import Dense, BatchNormalization, ReLU, Conv2D, \
-        MaxPool2D, Softmax, GlobalAveragePooling2D
-from network_components import ResidualBlock, SelfAttentionModule
+
+from redo.src.network_components import SelfAttentionModule, ResidualBlock
 
 
-class InformationConservationNetwork(Model):
-    """Network to recover the latent z-values"""
-    def __init__(self, init_gain: float, n_classes: int, n_output: int):
+class Discriminator(Model):
+    """Discriminator model for the GAN"""
+    def __init__(self, init_gain: float):
         """Class constructor
 
-        Attributes:
-            init_gain: Initializer for the kernel weights
-            n_classes: Number of classes in the training scheme. Corresponds
-                       to the number of network heads
-            n_output: Dimensionality of the output data
+        Args:
+            init_gain: Initializer gain for orthogonal initialization
         """
-        super(InformationConservationNetwork, self).__init__()
+        super(Discriminator, self).__init__()
 
-        self.model_name = 'Information_Network'
-        self.n_classes = n_classes
+        # Set model's name
+        self.model_name = 'Discriminator'
 
-        # ReLU
+        # Set ReLU
         self.relu = ReLU()
 
         # Input residual down-sampling block
@@ -60,16 +58,17 @@ class InformationConservationNetwork(Model):
         # Spatial sum pooling
         self.block_4 = GlobalAveragePooling2D()
 
-        # Dense classification layers
-        self.block_5 = Dense(units=n_output*self.n_classes,
-                kernel_initializer=orthogonal(gain=init_gain))
+        # Dense classification layer
+        self.block_5 = Dense(units=1,
+                             kernel_initializer=orthogonal(gain=init_gain))
 
-    def call(self, x: tf.Tensor, training: bool):
-        """Applies the information conservation network
+
+    def call(self, x: tf.Tensor, training: bool) -> tf.Tensor:
+        """Call the Discriminator network
 
         Args:
-            x: Input batch of shape (n, 128, 128, 3)
-            training: Whether we are in the training phase
+            x: Input to the residual block
+            training: Whether we are training
         """
 
         # First Block | Residual Down-sampling | Output: [batch_size, 64, 64, 64]
@@ -88,8 +87,8 @@ class InformationConservationNetwork(Model):
         # Fourth Block | Spatial Sum Pooling | Output: [batch_size, 1, 1, 1024]
         x = self.block_4(x) * x.shape[1] * x.shape[2]
 
-        # Fifth Block | Dense Output Layer | Output: [batch_size, n_classes, n_output]
+        # Fifth Block | Dense Output Layer | Output: [batch_size, 1]
         x = self.block_5(x)
-        x = tf.reshape(x, [x.shape[0], self.n_classes, -1])
 
         return x
+
