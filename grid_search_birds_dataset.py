@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-"""train_gan.py - Given dataset and other hyper-parameters, train all networks:
+"""grid_search_birds_dataset.py - Run a micro hyper-parameter search on the
+    Birds data set
     - generator(s)
     - discriminator
     - information
