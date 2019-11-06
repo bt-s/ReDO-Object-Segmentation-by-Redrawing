@@ -16,9 +16,9 @@ import tensorflow as tf
 
 from tensorflow.keras.layers import Softmax
 
-from segmentation_network import SegmentationNetwork
+from redo.src.segmentation_network import SegmentationNetwork
 
-if __name__ == '__main__':
+def test():
     # Prepare exemplary image batch
     input_path_1 = 'Datasets/Flowers/images/image_00023.jpg'
     input_path_2 = 'Datasets/Flowers/images/image_00081.jpg'

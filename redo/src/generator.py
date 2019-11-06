@@ -17,8 +17,8 @@ from tensorflow.keras.layers import Layer, Dense, LayerNormalization, ReLU, \
 from tensorflow.keras.initializers import orthogonal
 from tensorflow import random_uniform_initializer
 from typing import Union, List, Tuple
-from network_components import SelfAttentionModule, SpectralNormalization, \
-        InstanceNormalization
+from redo.src.network_components import SelfAttentionModule,\
+        SpectralNormalization, InstanceNormalization
 
 
 class ConditionalBatchNormalization(Layer):

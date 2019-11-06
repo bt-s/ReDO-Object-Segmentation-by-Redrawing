@@ -22,14 +22,15 @@ from os import path, makedirs
 from typing import Dict
 import matplotlib.pyplot as plt
 import os
-from datasets import BirdDataset, FlowerDataset, FaceDataset
-from train_utils import UnsupervisedLoss, log_training, compute_IoU, \
+
+from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo.train_utils import UnsupervisedLoss, log_training, compute_IoU, \
         compute_accuracy, normalize_contrast
-from generator import Generator
-from discriminator import Discriminator
-from segmentation_network import SegmentationNetwork
-from information_network import InformationConservationNetwork
-from gen_images import redraw_images
+from redo import Generator
+from redo import Discriminator
+from redo import SegmentationNetwork
+from redo import InformationConservationNetwork
+from redo import redraw_images
 
 SUPPORTED_DATASETS = {'flowers': FlowerDataset, 'birds': BirdDataset,
                       'faces': FaceDataset}

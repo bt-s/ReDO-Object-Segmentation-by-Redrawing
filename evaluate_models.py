@@ -13,10 +13,10 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 
-from segmentation_network import SegmentationNetwork
-from generator import Generator
-from datasets import BirdDataset, FlowerDataset, FaceDataset
-from discriminator import *
+from redo import SegmentationNetwork
+from redo import Generator
+from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo import Discriminator
 
 if __name__ == '__main__':
     # Session name

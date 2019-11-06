@@ -14,9 +14,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.metrics import Mean, Accuracy, MeanIoU
 
-from datasets import BirdDataset, FlowerDataset, FaceDataset
-from segmentation_network import SegmentationNetwork
-from train_utils import *
+from redo.datasets import BirdDataset, FlowerDataset, FaceDataset
+from redo import SegmentationNetwork
+from redo.train_utils import *
 
 
 if __name__ == '__main__':

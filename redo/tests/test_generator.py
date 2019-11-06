@@ -17,13 +17,13 @@ import matplotlib.pyplot as plt
 
 from tensorflow.keras.optimizers import Adam
 
-from generator import Generator
-from discriminator import Discriminator
-from information_network import InformationConservationNetwork
-from train_utils import UnsupervisedLoss
+from redo.src.generator import Generator
+from redo.src.discriminator import Discriminator
+from redo.src.information_network import InformationConservationNetwork
+from redo.src.train_utils import UnsupervisedLoss
 
 
-if __name__ == '__main__':
+def test():
     # Create generator object
     generator = Generator(n_classes=2, n_input=32, base_channels=32,
             init_gain=0.8)

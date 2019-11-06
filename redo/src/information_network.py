@@ -15,7 +15,7 @@ from tensorflow.keras import Model, Sequential
 from tensorflow.keras.initializers import orthogonal
 from tensorflow.keras.layers import Dense, BatchNormalization, ReLU, Conv2D, \
         MaxPool2D, Softmax, GlobalAveragePooling2D
-from network_components import ResidualBlock, SelfAttentionModule
+from redo.src.network_components import ResidualBlock, SelfAttentionModule
 
 
 class InformationConservationNetwork(Model):
