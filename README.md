@@ -1,12 +1,14 @@
 #  NeurIPS Reproducibility Challenge | Reproduction of _Unsupervised Object Segmentation by Redrawing_ by Chen et al. 2019
 
-An endeavour for the *Deep Learning, Advanced: DT2119* course 2019 at KTH Royal Institute of Technology.
+An endeavour for the *Deep Learning, Advanced: DD2412* course 2019 at KTH Royal Institute of Technology.
 
 ## Authors: Adrian Chmielewski-Anders, Mats Steinweg and Bas Straathof
 
 The objective of this project is to reproduce the results a presented in: 
 
 > Chen, Mickaël, Thierry Artières, and Ludovic Denoyer. "Unsupervised Object Segmentation by Redrawing." arXiv preprint arXiv:1905.13539 (2019).
+
+Chen et al.'s original repository can be [found here](https://github.com/mickaelChen/ReDO)
 
 Currently, only the results for the _Flowers_ data set have been reproduced.
 
