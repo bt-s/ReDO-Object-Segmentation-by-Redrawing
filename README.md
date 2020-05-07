@@ -12,7 +12,7 @@ Chen et al.'s original repository can be [found here](https://github.com/mickael
 
 Currently, only the results for the _Flowers_ data set have been reproduced.
 
-Once finished, the corresponding report will be uploaded here.
+Our report was not selected for publication as part of the challenge, but you can still read the unpublished report [here](https://openreview.net/pdf?id=HJeWSpczTS). 
 
 
 ## Project file structure
